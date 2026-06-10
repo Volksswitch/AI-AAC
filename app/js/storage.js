@@ -130,3 +130,18 @@ export function saveApiKey(apiKey) {
     settings.apiKey = apiKey;
     saveSettings(settings);
 }
+
+export function loadPlaceholderSettings() {
+    const settings = loadSettings();
+    return {
+        initialDelay: settings.initialDelay ?? 4,
+        subsequentDelay: settings.subsequentDelay ?? 10
+    };
+}
+
+export function savePlaceholderSettings(initialDelay, subsequentDelay) {
+    const settings = loadSettings();
+    settings.initialDelay = initialDelay;
+    settings.subsequentDelay = subsequentDelay;
+    saveSettings(settings);
+}

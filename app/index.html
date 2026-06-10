@@ -40,16 +40,58 @@
     </main>
 
     <dialog id="settingsDialog">
-        <h2>Settings</h2>
-        <label for="apiKeyInput">Claude API Key</label>
-        <input type="text" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
-        <div class="setting-group">
-            <label>Data Folder</label>
-            <div id="dataFolderRow">
-                <span id="dataFolderName" class="placeholder">No folder selected</span>
-                <button id="pickFolderBtn" type="button">Choose Folder</button>
+        <div id="settingsLayout">
+            <nav id="settingsTabs">
+                <div class="settings-tab active" data-tab="general">General</div>
+                <div class="settings-tab" data-tab="placeholders">Placeholders</div>
+                <div class="settings-tab" data-tab="about">About</div>
+            </nav>
+            <div id="settingsContent">
+                <div class="tab-panel active" data-tab="general">
+                    <div class="setting-group">
+                        <label for="apiKeyInput">Claude API Key</label>
+                        <input type="text" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="setting-group">
+                        <label>Data Folder</label>
+                        <div id="dataFolderRow">
+                            <span id="dataFolderName" class="placeholder">No folder selected</span>
+                            <button id="pickFolderBtn" type="button">Choose Folder</button>
+                        </div>
+                        <p class="setting-hint">Local folder for conversation history and user data. Synced by OneDrive, not uploaded to the cloud.</p>
+                    </div>
+                </div>
+                <div class="tab-panel" data-tab="placeholders">
+                    <div class="setting-group">
+                        <label for="initialDelayInput">Initial Placeholder Statement Delay</label>
+                        <select id="initialDelayInput">
+                            <option value="2">2 seconds</option>
+                            <option value="3">3 seconds</option>
+                            <option value="4" selected>4 seconds</option>
+                            <option value="5">5 seconds</option>
+                            <option value="6">6 seconds</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label for="subsequentDelayInput">Subsequent Placeholder Statement Delay</label>
+                        <select id="subsequentDelayInput">
+                            <option value="6">6 seconds</option>
+                            <option value="8">8 seconds</option>
+                            <option value="10" selected>10 seconds</option>
+                            <option value="12">12 seconds</option>
+                            <option value="15">15 seconds</option>
+                        </select>
+                    </div>
+                    <p class="setting-hint">The initial delay is how long after the partner finishes speaking before the first placeholder is spoken. Subsequent delays are the interval between additional placeholders while you choose a response.</p>
+                </div>
+                <div class="tab-panel" data-tab="about">
+                    <h3>AAC Conversation Assistant</h3>
+                    <p class="about-version">Phase 1 — Proof of Concept</p>
+                    <p class="about-description">AI-enabled AAC giving non-speaking individuals access to real-time conversation. Generative AI presents response options within seconds of a communication partner's utterance.</p>
+                    <p class="about-license">Open source — MIT License</p>
+                    <p class="about-link"><a href="https://www.volksswitch.org" target="_blank" rel="noopener">Volksswitch.org</a></p>
+                </div>
             </div>
-            <p class="setting-hint">Local folder for conversation history and user data. Synced by OneDrive, not uploaded to the cloud.</p>
         </div>
         <div class="dialog-actions">
             <button id="saveSettingsBtn">Save</button>

@@ -21,6 +21,7 @@ function initApp() {
     document.getElementById('startBtn').addEventListener('click', handleStart);
     ui.onListenClick(toggleListening);
     ui.onSettingsClick(openSettings);
+    initSettingsTabs();
 
     const savedKey = storage.loadApiKey();
     if (savedKey) {
@@ -88,6 +89,19 @@ async function handleResponseSelected(text, index) {
     ui.setStatus('Ready — tap Listen for the next exchange');
 }
 
+// --- Settings dialog ---
+
+function initSettingsTabs() {
+    document.querySelectorAll('#settingsTabs .settings-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('#settingsTabs .settings-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#settingsContent .tab-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelector(`.tab-panel[data-tab="${tab.dataset.tab}"]`).classList.add('active');
+        });
+    });
+}
+
 function updateFolderDisplay() {
     const nameEl = document.getElementById('dataFolderName');
     const name = storage.getDataFolderName();
@@ -102,9 +116,22 @@ function updateFolderDisplay() {
 
 function openSettings() {
     const dialog = document.getElementById('settingsDialog');
-    const input = document.getElementById('apiKeyInput');
-    input.value = storage.loadApiKey() || '';
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const initialDelayInput = document.getElementById('initialDelayInput');
+    const subsequentDelayInput = document.getElementById('subsequentDelayInput');
+
+    apiKeyInput.value = storage.loadApiKey() || '';
+    const placeholderSettings = storage.loadPlaceholderSettings();
+    initialDelayInput.value = placeholderSettings.initialDelay;
+    subsequentDelayInput.value = placeholderSettings.subsequentDelay;
     updateFolderDisplay();
+
+    // Reset to General tab
+    document.querySelectorAll('#settingsTabs .settings-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#settingsContent .tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('.settings-tab[data-tab="general"]').classList.add('active');
+    document.querySelector('.tab-panel[data-tab="general"]').classList.add('active');
+
     dialog.showModal();
 
     document.getElementById('pickFolderBtn').onclick = async () => {
@@ -119,12 +146,16 @@ function openSettings() {
     };
 
     document.getElementById('saveSettingsBtn').onclick = () => {
-        const key = input.value.trim();
+        const key = apiKeyInput.value.trim();
         if (key) {
             llm.setApiKey(key);
             storage.saveApiKey(key);
-            ui.setStatus('API key saved');
         }
+        storage.savePlaceholderSettings(
+            Number(initialDelayInput.value),
+            Number(subsequentDelayInput.value)
+        );
+        ui.setStatus('Settings saved');
         dialog.close();
     };
 
