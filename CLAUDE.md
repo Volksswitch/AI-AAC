@@ -112,3 +112,5 @@ Ken has screenshots of and has presented live demos of a prior team's shelved pr
 ## Open Questions (remaining)
 - Response option UI layout: exact screen allocation between traditional AAC and AI-facilitated options (requires design discussion)
 - Worldview questionnaire: what specific questions to include and how to structure chunked sessions
+- Placeholder utterances: currently drawn randomly from a static JSON file (app/data/placeholders.json). Predictable fillers will become a joke to communication partners over time. LLM-generated contextual fillers would sound more natural and could acknowledge the topic, but must be evaluated against token cost impact. The architecture already supports user-funded API keys, so any added cost is borne by the user.
+- TTS inflection: browser TTS has limited control (pitch, rate, volume on SpeechSynthesisUtterance). Natural-sounding placeholder delivery matters — monotone fillers will sound robotic. Voice banking / cloned voices (future) would give much better inflection control. Evaluate whether pitch/rate tweaks on fillers can improve naturalness in the near term.
