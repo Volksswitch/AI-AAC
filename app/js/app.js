@@ -18,6 +18,7 @@ function initApp() {
         onStatus: handleSttStatus
     });
 
+    document.getElementById('startBtn').addEventListener('click', handleStart);
     ui.onListenClick(toggleListening);
     ui.onSettingsClick(openSettings);
 
@@ -53,6 +54,12 @@ function handleSttStatus(status, detail) {
     }
 }
 
+async function handleStart() {
+    try { await storage.restoreDataFolder(); } catch { /* no stored handle yet */ }
+    document.getElementById('startOverlay').classList.add('hidden');
+    document.querySelector('main').classList.remove('disabled');
+}
+
 function toggleListening() {
     if (isListening) {
         stt.stopListening();
@@ -81,11 +88,35 @@ async function handleResponseSelected(text, index) {
     ui.setStatus('Ready — tap Listen for the next exchange');
 }
 
+function updateFolderDisplay() {
+    const nameEl = document.getElementById('dataFolderName');
+    const name = storage.getDataFolderName();
+    if (name) {
+        nameEl.textContent = name;
+        nameEl.classList.remove('placeholder');
+    } else {
+        nameEl.textContent = 'No folder selected';
+        nameEl.classList.add('placeholder');
+    }
+}
+
 function openSettings() {
     const dialog = document.getElementById('settingsDialog');
     const input = document.getElementById('apiKeyInput');
     input.value = storage.loadApiKey() || '';
+    updateFolderDisplay();
     dialog.showModal();
+
+    document.getElementById('pickFolderBtn').onclick = async () => {
+        try {
+            await storage.pickDataFolder();
+            updateFolderDisplay();
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                ui.setStatus(`Folder error: ${err.message}`);
+            }
+        }
+    };
 
     document.getElementById('saveSettingsBtn').onclick = () => {
         const key = input.value.trim();

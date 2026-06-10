@@ -12,7 +12,11 @@
         <button id="settingsBtn" aria-label="Settings">Settings</button>
     </header>
 
-    <main>
+    <div id="startOverlay">
+        <button id="startBtn">Start</button>
+    </div>
+
+    <main class="disabled">
         <section id="transcriptSection" aria-label="Partner speech transcript">
             <h2>Partner said:</h2>
             <div id="transcript" class="panel">
@@ -39,6 +43,14 @@
         <h2>Settings</h2>
         <label for="apiKeyInput">Claude API Key</label>
         <input type="text" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+        <div class="setting-group">
+            <label>Data Folder</label>
+            <div id="dataFolderRow">
+                <span id="dataFolderName" class="placeholder">No folder selected</span>
+                <button id="pickFolderBtn" type="button">Choose Folder</button>
+            </div>
+            <p class="setting-hint">Local folder for conversation history and user data. Synced by OneDrive, not uploaded to the cloud.</p>
+        </div>
         <div class="dialog-actions">
             <button id="saveSettingsBtn">Save</button>
             <button id="closeSettingsBtn">Cancel</button>
