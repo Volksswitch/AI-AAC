@@ -24,6 +24,11 @@ function initApp() {
     ui.onSettingsClick(openSettings);
     initSettingsTabs();
 
+    tts.onVoicesReady(() => {
+        const savedURI = storage.loadVoiceURI();
+        if (savedURI) tts.setVoice(savedURI);
+    });
+
     const savedKey = storage.loadApiKey();
     if (savedKey) {
         llm.setApiKey(savedKey);
@@ -105,6 +110,26 @@ function initSettingsTabs() {
     });
 }
 
+function populateVoiceSelect() {
+    const select = document.getElementById('voiceSelect');
+    const voices = tts.getVoices();
+    const savedURI = storage.loadVoiceURI();
+    select.innerHTML = '';
+
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = 'Browser default';
+    select.appendChild(defaultOpt);
+
+    voices.forEach(voice => {
+        const opt = document.createElement('option');
+        opt.value = voice.voiceURI;
+        opt.textContent = `${voice.name} (${voice.lang})`;
+        if (voice.voiceURI === savedURI) opt.selected = true;
+        select.appendChild(opt);
+    });
+}
+
 function updateFolderDisplay() {
     const nameEl = document.getElementById('dataFolderName');
     const name = storage.getDataFolderName();
@@ -120,10 +145,12 @@ function updateFolderDisplay() {
 function openSettings() {
     const dialog = document.getElementById('settingsDialog');
     const apiKeyInput = document.getElementById('apiKeyInput');
+    const voiceSelect = document.getElementById('voiceSelect');
     const initialDelayInput = document.getElementById('initialDelayInput');
     const subsequentDelayInput = document.getElementById('subsequentDelayInput');
 
     apiKeyInput.value = storage.loadApiKey() || '';
+    populateVoiceSelect();
     const placeholderSettings = storage.loadPlaceholderSettings();
     initialDelayInput.value = placeholderSettings.initialDelay;
     subsequentDelayInput.value = placeholderSettings.subsequentDelay;
@@ -148,12 +175,20 @@ function openSettings() {
         }
     };
 
+    document.getElementById('testVoiceBtn').onclick = () => {
+        tts.setVoice(voiceSelect.value || null);
+        tts.speak('This is how I will sound during our conversation.');
+    };
+
     document.getElementById('saveSettingsBtn').onclick = () => {
         const key = apiKeyInput.value.trim();
         if (key) {
             llm.setApiKey(key);
             storage.saveApiKey(key);
         }
+        const voiceURI = voiceSelect.value || null;
+        tts.setVoice(voiceURI);
+        storage.saveVoiceURI(voiceURI);
         storage.savePlaceholderSettings(
             Number(initialDelayInput.value),
             Number(subsequentDelayInput.value)

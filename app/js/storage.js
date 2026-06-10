@@ -131,6 +131,16 @@ export function saveApiKey(apiKey) {
     saveSettings(settings);
 }
 
+export function loadVoiceURI() {
+    return loadSettings().voiceURI || null;
+}
+
+export function saveVoiceURI(voiceURI) {
+    const settings = loadSettings();
+    settings.voiceURI = voiceURI;
+    saveSettings(settings);
+}
+
 export function loadPlaceholderSettings() {
     const settings = loadSettings();
     return {
