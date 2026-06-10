@@ -3,6 +3,7 @@ import * as tts from './tts.js';
 import * as llm from './llm.js';
 import * as ui from './ui.js';
 import * as storage from './storage.js';
+import * as placeholders from './placeholders.js';
 
 const conversationHistory = [];
 let isListening = false;
@@ -38,6 +39,7 @@ function handleSpeechResult({ final, interim }) {
 
     if (final) {
         conversationHistory.push({ role: 'partner', text: final });
+        placeholders.start();
         generateOptions();
     }
 }
@@ -83,6 +85,7 @@ async function generateOptions() {
 }
 
 async function handleResponseSelected(text, index) {
+    placeholders.stop();
     conversationHistory.push({ role: 'user', text });
     ui.setStatus('Speaking...');
     await tts.speak(text);
