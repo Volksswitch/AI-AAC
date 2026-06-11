@@ -109,6 +109,18 @@ Ken has screenshots of and has presented live demos of a prior team's shelved pr
 
 ---
 
+## Versioning
+
+Format: **major.minor** (e.g., `0.1`, `0.2`). All pre-release versions use major `0`. The decision to increment to `1.0` or beyond is made jointly by Ken and Claude Code based on maturity and readiness.
+
+Phase-to-version mapping (update as releases are tagged):
+
+| Version | Phase | Notes |
+|---------|-------|-------|
+| 0.1     | 1     | Core conversation loop proof of concept |
+
+---
+
 ## Open Questions (remaining)
 - Response option UI layout: exact screen allocation between traditional AAC and AI-facilitated options (requires design discussion)
 - Worldview questionnaire: what specific questions to include and how to structure chunked sessions
