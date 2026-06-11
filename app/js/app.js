@@ -7,12 +7,16 @@ import * as placeholders from './placeholders.js';
 
 const conversationHistory = [];
 let isListening = false;
+let lastResponseOptions = [];
 
 function initApp() {
     if (!stt.isSupported()) {
         ui.setStatus('Speech recognition not supported in this browser. Use Chrome or Edge.');
         return;
     }
+
+    const savedThreshold = storage.loadSilenceThreshold();
+    stt.setSilenceThreshold(savedThreshold);
 
     stt.init({
         onResult: handleSpeechResult,
@@ -29,6 +33,8 @@ function initApp() {
         if (savedURI) tts.setVoice(savedURI);
     });
 
+    llm.onUsage((input, output) => storage.addUsageTokens(input, output));
+
     const savedKey = storage.loadApiKey();
     if (savedKey) {
         llm.setApiKey(savedKey);
@@ -38,12 +44,26 @@ function initApp() {
     }
 }
 
-function handleSpeechResult({ final, interim }) {
-    const display = final || interim;
-    ui.showTranscript(display, !!final);
+async function handleSpeechResult({ final, interim, display }) {
+    if (display && interim) {
+        ui.showTranscript(interim, false);
+        return;
+    }
 
     if (final) {
-        conversationHistory.push({ role: 'partner', text: final });
+        ui.showTranscript(final, false);
+        ui.setStatus('Cleaning up transcript...');
+        let cleaned;
+        try {
+            cleaned = await llm.cleanupTranscript(final, conversationHistory);
+            ui.showTranscript(cleaned, true);
+            conversationHistory.push({ role: 'partner', text: cleaned });
+        } catch {
+            cleaned = final;
+            ui.showTranscript(final, true);
+            conversationHistory.push({ role: 'partner', text: final });
+        }
+        storage.logPartnerSpeech({ rawTranscript: final, cleanedTranscript: cleaned });
         placeholders.start();
         generateOptions();
     }
@@ -82,6 +102,7 @@ async function generateOptions() {
 
     try {
         const options = await llm.generateResponses(conversationHistory);
+        lastResponseOptions = options;
         ui.showResponseOptions(options, handleResponseSelected);
         ui.setStatus('Select a response');
     } catch (err) {
@@ -92,6 +113,7 @@ async function generateOptions() {
 async function handleResponseSelected(text, index) {
     placeholders.stop();
     conversationHistory.push({ role: 'user', text });
+    storage.logUserResponse({ selectedText: text, selectedIndex: index, allOptions: lastResponseOptions });
     ui.setStatus('Speaking...');
     await tts.speak(text);
     ui.setStatus('Ready — tap Listen for the next exchange');
@@ -142,15 +164,41 @@ function updateFolderDisplay() {
     }
 }
 
+let pricingData = null;
+
+async function loadPricing() {
+    if (pricingData) return pricingData;
+    try {
+        const resp = await fetch('data/pricing.json');
+        pricingData = await resp.json();
+    } catch {
+        pricingData = { inputCostPerMillionTokens: 3, outputCostPerMillionTokens: 15 };
+    }
+    return pricingData;
+}
+
+async function updateUsageDisplay() {
+    const usage = storage.loadUsage();
+    const pricing = await loadPricing();
+    const cost = (usage.inputTokens * pricing.inputCostPerMillionTokens / 1_000_000)
+               + (usage.outputTokens * pricing.outputCostPerMillionTokens / 1_000_000);
+    document.getElementById('usageCost').textContent = `$${cost.toFixed(2)}`;
+    const sinceDate = new Date(usage.since).toLocaleDateString();
+    document.getElementById('usageSince').textContent = `since ${sinceDate}`;
+}
+
 function openSettings() {
     const dialog = document.getElementById('settingsDialog');
     const apiKeyInput = document.getElementById('apiKeyInput');
     const voiceSelect = document.getElementById('voiceSelect');
+    const silenceThresholdInput = document.getElementById('silenceThresholdInput');
     const initialDelayInput = document.getElementById('initialDelayInput');
     const subsequentDelayInput = document.getElementById('subsequentDelayInput');
 
     apiKeyInput.value = storage.loadApiKey() || '';
     populateVoiceSelect();
+    silenceThresholdInput.value = storage.loadSilenceThreshold();
+    updateUsageDisplay();
     const placeholderSettings = storage.loadPlaceholderSettings();
     initialDelayInput.value = placeholderSettings.initialDelay;
     subsequentDelayInput.value = placeholderSettings.subsequentDelay;
@@ -175,6 +223,11 @@ function openSettings() {
         }
     };
 
+    document.getElementById('resetUsageBtn').onclick = () => {
+        storage.resetUsage();
+        updateUsageDisplay();
+    };
+
     document.getElementById('testVoiceBtn').onclick = () => {
         tts.setVoice(voiceSelect.value || null);
         tts.speak('This is how I will sound during our conversation.');
@@ -189,6 +242,9 @@ function openSettings() {
         const voiceURI = voiceSelect.value || null;
         tts.setVoice(voiceURI);
         storage.saveVoiceURI(voiceURI);
+        const threshold = Number(silenceThresholdInput.value);
+        stt.setSilenceThreshold(threshold);
+        storage.saveSilenceThreshold(threshold);
         storage.savePlaceholderSettings(
             Number(initialDelayInput.value),
             Number(subsequentDelayInput.value)

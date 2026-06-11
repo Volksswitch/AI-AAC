@@ -141,6 +141,110 @@ export function saveVoiceURI(voiceURI) {
     saveSettings(settings);
 }
 
+export function loadSilenceThreshold() {
+    return loadSettings().silenceThreshold ?? 2;
+}
+
+export function saveSilenceThreshold(seconds) {
+    const settings = loadSettings();
+    settings.silenceThreshold = seconds;
+    saveSettings(settings);
+}
+
+// --- Conversation logging ---
+
+let conversationDirHandle = null;
+let currentLogHandle = null;
+let currentLogName = null;
+let currentLogData = null;
+
+async function getConversationsDir() {
+    if (!dirHandle) return null;
+    if (!conversationDirHandle) {
+        conversationDirHandle = await dirHandle.getDirectoryHandle('conversations', { create: true });
+    }
+    return conversationDirHandle;
+}
+
+export async function startConversationLog() {
+    const dir = await getConversationsDir();
+    if (!dir) return null;
+
+    const now = new Date();
+    const stamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    currentLogName = `${stamp}.json`;
+    currentLogData = {
+        started: now.toISOString(),
+        exchanges: []
+    };
+
+    currentLogHandle = await dir.getFileHandle(currentLogName, { create: true });
+    await flushLog();
+    return currentLogName;
+}
+
+export async function logPartnerSpeech({ rawTranscript, cleanedTranscript }) {
+    if (!currentLogData) await startConversationLog();
+    if (!currentLogData) return;
+
+    currentLogData.exchanges.push({
+        timestamp: new Date().toISOString(),
+        role: 'partner',
+        rawTranscript,
+        cleanedTranscript
+    });
+    await flushLog();
+}
+
+export async function logUserResponse({ selectedText, selectedIndex, allOptions }) {
+    if (!currentLogData) return;
+
+    currentLogData.exchanges.push({
+        timestamp: new Date().toISOString(),
+        role: 'user',
+        selectedText,
+        selectedIndex,
+        allOptions
+    });
+    await flushLog();
+}
+
+async function flushLog() {
+    if (!currentLogHandle || !currentLogData) return;
+    try {
+        const writable = await currentLogHandle.createWritable();
+        await writable.write(JSON.stringify(currentLogData, null, 2));
+        await writable.close();
+    } catch { /* silent — don't interrupt conversation flow */ }
+}
+
+// --- Usage tracking ---
+
+export function loadUsage() {
+    const settings = loadSettings();
+    return {
+        inputTokens: settings.usageInputTokens ?? 0,
+        outputTokens: settings.usageOutputTokens ?? 0,
+        since: settings.usageSince ?? new Date().toISOString()
+    };
+}
+
+export function addUsageTokens(inputTokens, outputTokens) {
+    const settings = loadSettings();
+    if (!settings.usageSince) settings.usageSince = new Date().toISOString();
+    settings.usageInputTokens = (settings.usageInputTokens ?? 0) + inputTokens;
+    settings.usageOutputTokens = (settings.usageOutputTokens ?? 0) + outputTokens;
+    saveSettings(settings);
+}
+
+export function resetUsage() {
+    const settings = loadSettings();
+    settings.usageInputTokens = 0;
+    settings.usageOutputTokens = 0;
+    settings.usageSince = new Date().toISOString();
+    saveSettings(settings);
+}
+
 export function loadPlaceholderSettings() {
     const settings = loadSettings();
     return {
