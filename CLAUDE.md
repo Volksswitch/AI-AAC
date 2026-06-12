@@ -150,6 +150,32 @@ Ken collected Conversation Analysis (CA) literature and had it synthesized into 
 
 ---
 
+## Worldview Questionnaire (June 2026) — design complete, implementation NOT started
+
+The worldview model (Architecture Overview §6) now has a concrete questionnaire design and a build-ready implementation plan. **This is where to pick up next.**
+
+**Origin:** The interim *Your Name / About You* fields in Settings (shipped June 2026 to stop the LLM emitting `[Name]` placeholders) are a stopgap. The worldview questionnaire replaces and generalizes them. Bracketed placeholders are the signal of which personal facts conversations demand; the design turns that signal into a self-populating profile.
+
+**Documents produced (in this folder, styled like the other design docs):**
+1. `Worldview-Questionnaire-Draft1.docx` — the question bank. Three tiers: **A** Concrete Core (identity, place, people, daily life, contact), **C** Interests/Passions/Preferences (the layer the frameworks miss — Ken's explicit add), **B** Abstract Characteristics (personality via Big Five, values via Schwartz Portrait format, humor, register/style, beliefs, how-you-treat-different-people, emotional landscape, voice-in-your-words). Grounded in Big Five, Schwartz basic human values, and the AAC Communication Passport / "All About Me" tradition.
+2. `Worldview-Implementation-Plan.docx` — build-ready plan. Slots into the Architecture Overview as **§17** (or expands §6). Covers data model, files, the gaps-log mechanism, conversation integration, UI flow, migration, build order, verification, and decisions-to-confirm.
+
+**Settled design decisions:**
+- **Three tiers** A (concrete, fills placeholders) / C (interests) / B (abstract, shapes voice). Abstract questions organized by *conversational lever* (what they change in output), not psychological taxonomy. Values use Schwartz **Portrait** format ("here's a person — how like you?").
+- **Three field states:** Unanswered (eligible to ask/resurface) / Answered / **Declined** (sticky — never ask again, always phrase around; un-declinable). Skip ≠ Decline. Every question optional; full value at zero answers; chunked sessions.
+- **Gaps-log mechanism:** the no-bracket / phrase-around rule stays, so gaps can't be read off the output. Instead the single combined generation call returns structured `{classification, options, missing_facts}`; `missing_facts` (normalized field keys) feed a gaps log that drives the questionnaire's "suggested next." Regex-on-output is only a fallback. This is **progressive profiling** — the questionnaire fills itself from real conversations.
+- **Storage:** user-owned → `worldview.json` in the FSA data folder (localStorage cache), plus static `app/data/worldview-questions.json` registry. Contact info (A5) and beliefs (B5) **private by default** (never volunteered; phrase-around).
+- **Sequencing guardrail:** keep the Name/About You Settings fields live until the questionnaire UI ships, then migrate legacy `userName`/`userAbout` into `worldview.json` and remove them. Do NOT remove early — it would regress the live app.
+
+**Build order (from the plan doc):** 1) data model + registry → 2) questionnaire UI → 3) LLM integration (structured `missing_facts`, profile block, gaps recording) → 4) migrate + remove Name/About You → 5) expand Tier-B/Tier-C content → 6) RAG-lite.
+
+**Decisions still open (need Ken):** size of first-cut Tier-A set; per-field "may share if I pick it" toggle for contact info vs. strict phrase-around; chunk size per session; whether B5 beliefs ships in this build; symbol/picture answers + supporter-assisted mode now or later.
+
+**Next-session kickoff prompt:**
+> Read `Worldview-Implementation-Plan.docx` and the "Worldview Questionnaire" section of CLAUDE.md. We're implementing Build Step 1: the data model and question registry. Create `app/data/worldview-questions.json` (Tier-A Concrete Core + a starter set of Tier-C interests, from `Worldview-Questionnaire-Draft1.docx`) and `app/js/worldview.js` (load/save `worldview.json` to the FSA data folder with a localStorage cache; get/set/decline/reset fields; the three field states; gaps add/list/clear; `buildBlock()` for the LLM profile injection). Keep the interim Name/About You Settings fields untouched for now. Verify persistence in the preview before moving on.
+
+---
+
 ## Versioning
 
 Format: **major.minor** (e.g., `0.1`, `0.2`). All pre-release versions use major `0`. The decision to increment to `1.0` or beyond is made jointly by Ken and Claude Code based on maturity and readiness.
@@ -167,6 +193,6 @@ Phase-to-version mapping (update as releases are tagged):
 
 ## Open Questions (remaining)
 - Response option UI layout: `UI-Design.docx` now specifies the four-region layout and move palette; remaining question is screen allocation between traditional AAC vocabulary and the AI-facilitated regions (composer-access region is the integration point; ultimately user-configurable per the Configuration Model)
-- Worldview questionnaire: what specific questions to include and how to structure chunked sessions
+- Worldview questionnaire: design now complete — see the **Worldview Questionnaire (June 2026)** section above and `Worldview-Questionnaire-Draft1.docx` / `Worldview-Implementation-Plan.docx`. Remaining: the decisions-to-confirm listed there, then implementation (Build Step 1 is the next pick-up).
 - Placeholder utterances: currently drawn randomly from a static JSON file (app/data/placeholders.json). Predictable fillers will become a joke to communication partners over time. LLM-generated contextual fillers would sound more natural and could acknowledge the topic, but must be evaluated against token cost impact. The architecture already supports user-funded API keys, so any added cost is borne by the user. *Design now specified:* the filler ladder in `Conversation-Engine-Design.docx` §6 (rung 1 static token ≤1 s, rung 2 static-or-contextual, rung 3 re-fill); contextual fillers are the rung-2 LLM option in the Configuration Model. Remaining work is implementation and the token-cost evaluation.
 - TTS inflection: browser TTS has limited control (pitch, rate, volume on SpeechSynthesisUtterance). Natural-sounding placeholder delivery matters — monotone fillers will sound robotic. Voice banking / cloned voices (future) would give much better inflection control. Evaluate whether pitch/rate tweaks on fillers can improve naturalness in the near term.
