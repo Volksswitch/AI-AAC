@@ -44,11 +44,16 @@ const SHIFT_DOUBLE_TAP_MS = 300;
 // on the symbols page because editing is impossible without them.
 let page = 'letters';
 
+// Layout: ALPHABETICAL only for now (Ken, June 14 2026 — dropped QWERTY: the
+// users aren't touch-typists, so A–Z order is the easiest to scan). Other
+// layouts (e.g. frequency-based) are a later phase, at which point layout
+// becomes a Settings option; the rows are pure data so adding one is data,
+// not code.
 const LETTER_ROWS = [
-    ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
-    ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
-    [{ action: 'shift', label: '⇧' }, 'z', 'x', 'c', 'v', 'b', 'n', 'm', { action: 'backspace', label: '⌫' }],
-    [{ action: 'page', label: '123' }, ',', { action: 'space', label: 'space', wide: true }, '.', { action: 'enter', label: '↵' }]
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
+    ['j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r'],
+    ['s', 't', 'u', 'v', 'w', 'x', 'y', 'z', { action: 'backspace', label: '⌫' }],
+    [{ action: 'shift', label: '⇧' }, { action: 'page', label: '123' }, ',', { action: 'space', label: 'space', wide: true }, '.', { action: 'enter', label: '↵' }]
 ];
 
 const SYMBOL_ROWS = [
@@ -216,11 +221,29 @@ function renderRows() {
 
 // --- show / hide ------------------------------------------------------------
 
+// Context-based docking (Ken, June 14 2026 — NOT tied to layout or, for now,
+// to orientation): About Me / Settings fields dock the keyboard to the SIDE
+// (those screens compete for horizontal space and want full height); the
+// conversation composer docks it to the BOTTOM. Dynamic orientation-aware
+// docking is a later refinement.
+function dockFor(field) {
+    return field.matches('.wv-text') ? 'side' : 'bottom';
+}
+
+function setDock(dock) {
+    const side = dock === 'side';
+    rootEl.classList.toggle('kbd-dock-side', side);
+    rootEl.classList.toggle('kbd-dock-bottom', !side);
+    document.body.classList.toggle('kbd-dock-side', side);
+    document.body.classList.toggle('kbd-dock-bottom', !side);
+}
+
 function show(field) {
     activeField = field;
+    setDock(dockFor(field));
     rootEl.classList.remove('hidden');
     document.body.classList.add('kbd-open');
-    // Keep the field visible above the keyboard.
+    // Keep the field visible clear of the keyboard.
     requestAnimationFrame(() => {
         try { field.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* ignore */ }
     });
@@ -233,7 +256,7 @@ function hide() {
     page = 'letters';
     renderRows();
     if (rootEl) rootEl.classList.add('hidden');
-    document.body.classList.remove('kbd-open');
+    document.body.classList.remove('kbd-open', 'kbd-dock-side', 'kbd-dock-bottom');
 }
 
 // --- public API -------------------------------------------------------------

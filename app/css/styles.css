@@ -851,19 +851,38 @@ label.radio-label input[type="radio"] {
 
 #appKeyboard {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
     z-index: 300;            /* above the worldview overlay (200) */
     background: #e9edf0;
-    border-top: 1px solid #c4ccd2;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
-    padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
     touch-action: manipulation;
     user-select: none;
+}
+
+/* Bottom dock — conversation composer (competes for vertical space, so it's a
+   full-width strip along the bottom). */
+#appKeyboard.kbd-dock-bottom {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-top: 1px solid #c4ccd2;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+    padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Side dock — About Me / Settings (compete for horizontal space, so the
+   keyboard takes a full-height column on the right and leaves the screen its
+   full height). Left vs. right is a future config knob. */
+#appKeyboard.kbd-dock-side {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(26rem, 50vw);
+    border-left: 1px solid #c4ccd2;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.18);
+    padding: 0.5rem;
+    justify-content: center;   /* center the rows in the full-height column */
 }
 
 #appKeyboard.hidden {
@@ -923,9 +942,14 @@ label.radio-label input[type="radio"] {
     border-color: #2c3e50;
 }
 
-/* Reserve room so the focused field can scroll clear of the keyboard
-   (taller keys + the symbols page leave it 5 rows tall). */
-body.kbd-open main,
-body.kbd-open #worldviewContent {
+/* Reserve room so the focused field clears the keyboard. Bottom dock reserves
+   vertical space (composer in main; worldview if ever bottom-docked); side dock
+   reserves horizontal space on the About Me screen. */
+body.kbd-open.kbd-dock-bottom main,
+body.kbd-open.kbd-dock-bottom #worldviewContent {
     padding-bottom: 23rem;
+}
+
+body.kbd-open.kbd-dock-side #worldviewContent {
+    padding-right: min(26rem, 50vw);
 }
