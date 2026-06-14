@@ -21,6 +21,23 @@ import * as storage from './storage.js';
 
 let screenEl, contentEl, titleEl;
 
+// While the questionnaire overlay is open, make the app header + conversation
+// screen behind it inert so keyboard Tab stays inside the form (it never leaks
+// out to the Settings button or the conversation controls underneath).
+function setBackgroundInert(on) {
+    for (const sel of ['body > header', 'main']) {
+        const node = document.querySelector(sel);
+        if (node) node.inert = on;
+    }
+}
+
+// Move keyboard focus to the first answerable control within `scope`
+// (a chip or a text input — whichever comes first in the card).
+function focusFirstField(scope) {
+    const first = (scope || contentEl).querySelector('.wv-card .wv-chip, .wv-card .wv-text');
+    if (first) first.focus();
+}
+
 // --- tiny DOM helper --------------------------------------------------------
 
 function el(tag, props = {}, children = []) {
@@ -76,9 +93,11 @@ export async function open() {
     await wv.load();
     renderHome();
     screenEl.classList.remove('hidden');
+    setBackgroundInert(true);
 }
 
 export function close() {
+    setBackgroundInert(false);
     screenEl.classList.add('hidden');
 }
 
@@ -142,6 +161,7 @@ function openModuleForField(key) {
     if (card) {
         card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         card.classList.add('wv-flash');
+        focusFirstField(card);   // override renderModule's first-field focus
     }
 }
 
@@ -162,6 +182,8 @@ function renderModule(moduleId) {
     contentEl.append(el('div', { class: 'wv-home-footer' }, [
         el('button', { class: 'wv-btn wv-btn-primary', text: 'Done', onclick: renderHome })
     ]));
+
+    focusFirstField();
 }
 
 function refreshCard(field) {
