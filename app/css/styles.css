@@ -586,12 +586,6 @@ label.radio-label input[type="radio"] {
     font-size: 0.9rem;
 }
 
-#saveSettingsBtn {
-    background: #2c3e50;
-    color: white;
-    border-color: #2c3e50;
-}
-
 /* --- Worldview "About Me" questionnaire --- */
 
 #worldviewScreen {

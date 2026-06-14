@@ -320,7 +320,7 @@ APP_VERSION / CACHE_VERSION → `0.2.13`. **Verified in preview:** Settings show
 
 ## Settings Panel — usability pass (June 14 2026), v0.2.8
 
-Six Settings-panel improvements shipped (Ken's list), modeled on the Keyguard Designer web app's settings panel (`keyguard-designer-web/app.html`, the second working directory):
+Six Settings-panel improvements shipped (Ken's list), modeled on the Keyguard Designer web app's settings panel (`keyguard-designer-web/app.html`, the second working directory). *(Superseded in v0.2.16: the **Save button was removed** — every control now applies AND persists immediately; the "Save persists / Close keeps for the session" wording in items 1 and 3 below is historical.)*
 
 1. **"Cancel" → "Close".** Footer button relabeled (`index.html`). Behavior unchanged — it dismisses without persisting; **Save** persists.
 2. **Draggable modal.** Added a dark title-bar `#settingsHeader` ("Settings" + faint "drag to move" hint) as the drag handle. `initSettingsDrag()` in `app.js` (adapted from Keyguard's `mousedown` drag, but using **pointer events** + `setPointerCapture`): on first drag it converts the native `<dialog>`'s UA centering to pixel `left/top` with `margin:0`, then tracks the pointer clamped to the viewport. Stays modal — the backdrop still blocks the app behind it — but can be moved aside. Position persists for the session.
@@ -355,6 +355,7 @@ Phase-to-version mapping (update as releases are tagged):
 | 0.2.13  | 1     | App keyboard: 20 selectable layouts (data-driven) + Settings (side/bottom layout selects, left/right slider); side dock fills its column, About Me fills width, conversation field stays above the keyboard, both docks window-aware |
 | 0.2.14  | 1     | Settings panel uses the app keyboard (side-docked) instead of the Windows keyboard; keyboard reparents into the modal dialog's top layer so it stays interactive over the modal |
 | 0.2.15  | 1     | Auto-nudge the Settings panel clear of the side keyboard (opposite side); layout-independent Cut/Copy/Paste toolbar above the keyboard |
+| 0.2.16  | 1     | Removed the Settings Save button — every control applies AND persists immediately (live test bench, esp. for side-dock keyboard layouts); Close just dismisses |
 
 ---
 

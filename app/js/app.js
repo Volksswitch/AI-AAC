@@ -12,7 +12,7 @@ import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.2.15';
+const APP_VERSION = '0.2.16';
 
 const conversationHistory = [];
 let isListening = false;
@@ -438,58 +438,53 @@ function openSettings() {
         tts.speak('This is how I will sound during our conversation.');
     };
 
-    // Live-apply: settings that change the app's behavior or UI take effect
-    // immediately on change, even while the (draggable) modal is still open, so
-    // the user can move the panel aside and see/hear the effect right away.
-    // Save persists these to storage; Close keeps them for the session.
-    voiceSelect.onchange = () => tts.setVoice(voiceSelect.value || null);
-    silenceThresholdInput.onchange = () => stt.setSilenceThreshold(Number(silenceThresholdInput.value));
-    document.querySelectorAll('input[name="keyboardMode"]').forEach(radio => {
-        radio.onchange = () => {
-            keyboard.setMode(
-                document.querySelector('input[name="keyboardMode"]:checked')?.value || 'physical'
-            );
-            updateSettingsNudge();
-        };
-    });
-    bottomLayoutSelect.onchange = () => keyboard.setBottomLayout(bottomLayoutSelect.value);
-    sideLayoutSelect.onchange = () => keyboard.setSideLayout(sideLayoutSelect.value);
-    sideDockPositionToggle.onchange = () => {
-        keyboard.setSideDockPosition(sideDockPositionToggle.checked ? 'right' : 'left');
-        updateSettingsNudge();
-    };
-
-    document.getElementById('saveSettingsBtn').onclick = () => {
+    // No Save button (Ken, June 14 2026): every control applies AND persists
+    // immediately, so Settings doubles as a live test bench (e.g. trying the
+    // side-dock keyboard layouts). Close just dismisses the panel.
+    apiKeyInput.oninput = () => {
         const key = apiKeyInput.value.trim();
-        if (key) {
-            llm.setApiKey(key);
-            storage.saveApiKey(key);
-        }
+        llm.setApiKey(key);
+        storage.saveApiKey(key);
+    };
+    voiceSelect.onchange = () => {
         const voiceURI = voiceSelect.value || null;
         tts.setVoice(voiceURI);
         storage.saveVoiceURI(voiceURI);
+    };
+    silenceThresholdInput.onchange = () => {
         const threshold = Number(silenceThresholdInput.value);
         stt.setSilenceThreshold(threshold);
         storage.saveSilenceThreshold(threshold);
-        storage.saveAutoRelisten(autoRelistenInput.checked);
-        const keyboardMode = document.querySelector('input[name="keyboardMode"]:checked')?.value || 'physical';
-        storage.saveKeyboardMode(keyboardMode);
-        keyboard.setMode(keyboardMode);
-        storage.saveBottomLayout(bottomLayoutSelect.value);
-        keyboard.setBottomLayout(bottomLayoutSelect.value);
-        storage.saveSideLayout(sideLayoutSelect.value);
-        keyboard.setSideLayout(sideLayoutSelect.value);
-        const sideDockPosition = sideDockPositionToggle.checked ? 'right' : 'left';
-        storage.saveSideDockPosition(sideDockPosition);
-        keyboard.setSideDockPosition(sideDockPosition);
-        storage.savePlaceholderSettings(
-            Number(initialDelayInput.value),
-            Number(subsequentDelayInput.value)
-        );
-        ui.setStatus('Settings saved');
-        dialog.classList.remove('nudge-left', 'nudge-right');
-        dialog.close();
     };
+    autoRelistenInput.onchange = () => storage.saveAutoRelisten(autoRelistenInput.checked);
+    document.querySelectorAll('input[name="keyboardMode"]').forEach(radio => {
+        radio.onchange = () => {
+            const mode = document.querySelector('input[name="keyboardMode"]:checked')?.value || 'physical';
+            keyboard.setMode(mode);
+            storage.saveKeyboardMode(mode);
+            updateSettingsNudge();
+        };
+    });
+    bottomLayoutSelect.onchange = () => {
+        keyboard.setBottomLayout(bottomLayoutSelect.value);
+        storage.saveBottomLayout(bottomLayoutSelect.value);
+    };
+    sideLayoutSelect.onchange = () => {
+        keyboard.setSideLayout(sideLayoutSelect.value);
+        storage.saveSideLayout(sideLayoutSelect.value);
+    };
+    sideDockPositionToggle.onchange = () => {
+        const pos = sideDockPositionToggle.checked ? 'right' : 'left';
+        keyboard.setSideDockPosition(pos);
+        storage.saveSideDockPosition(pos);
+        updateSettingsNudge();
+    };
+    const persistPlaceholders = () => storage.savePlaceholderSettings(
+        Number(initialDelayInput.value),
+        Number(subsequentDelayInput.value)
+    );
+    initialDelayInput.onchange = persistPlaceholders;
+    subsequentDelayInput.onchange = persistPlaceholders;
 
     document.getElementById('closeSettingsBtn').onclick = () => {
         dialog.classList.remove('nudge-left', 'nudge-right');
