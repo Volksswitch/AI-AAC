@@ -643,13 +643,12 @@ label.radio-label input[type="radio"] {
     flex: 1;
     overflow-y: auto;
     width: 100%;
-    /* Readable column, not full viewport width (Ken, June 2026 — the cards were
-       too wide). Centred within the available region; the side keyboard's
-       reservation lives on #worldviewScreen (below), so the column sits cleanly
-       beside the keyboard on either side. ~40rem is tunable. */
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: 1rem 1.5rem 3rem;
+    /* Fill the available width minus a reasonable margin (Ken, June 2026). The
+       side keyboard's reservation lives on #worldviewScreen (below), so this
+       content box is already "window − keyboard"; no max-width cap, so the
+       questions use all of that space (and all of the window when no keyboard
+       is shown). */
+    padding: 1.25rem 2rem 3rem;
 }
 
 .wv-intro {
