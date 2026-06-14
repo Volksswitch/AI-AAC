@@ -12,7 +12,7 @@ import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.2.19';
+const APP_VERSION = '0.2.20';
 
 const conversationHistory = [];
 let isListening = false;
@@ -54,14 +54,12 @@ function initApp() {
     keyboard.setSideDockPosition(storage.loadSideDockPosition());
     initSettingsTabs();
     initSettingsDrag();
-    // Clean up the nudge + keyboard preview when Settings is dismissed. The
-    // Close button does this explicitly; this 'cancel' listener covers Escape
-    // (the dialog 'close' event proved unreliable here).
+    // Take the keyboard preview down when Settings is dismissed. The Close
+    // button does this explicitly; this 'cancel' listener covers Escape (the
+    // dialog 'close' event proved unreliable here). The panel nudge is pure CSS
+    // (driven by the keyboard's body classes), so nothing to clean up there.
     const settingsDialog = document.getElementById('settingsDialog');
-    settingsDialog.addEventListener('cancel', () => {
-        settingsDialog.classList.remove('nudge-left', 'nudge-right');
-        keyboard.previewHide();
-    });
+    settingsDialog.addEventListener('cancel', () => keyboard.previewHide());
     const versionEl = document.getElementById('aboutVersion');
     if (versionEl) versionEl.textContent = APP_VERSION;
 
@@ -337,20 +335,6 @@ function populateVoiceSelect() {
     });
 }
 
-// Nudge the (centred) Settings panel clear of the side-docked app keyboard:
-// keyboard on the right → push the panel left, and vice-versa. Only relevant in
-// on-screen keyboard mode (otherwise no app keyboard appears). Reads the live
-// control states so flipping the mode/position updates it immediately. A
-// dragged panel keeps its own position (inline left wins over the CSS inset).
-function updateSettingsNudge() {
-    const dialog = document.getElementById('settingsDialog');
-    dialog.classList.remove('nudge-left', 'nudge-right');
-    const mode = document.querySelector('input[name="keyboardMode"]:checked')?.value || storage.loadKeyboardMode();
-    if (mode !== 'onscreen') return;
-    const keyboardOnRight = document.getElementById('sideDockPositionToggle')?.checked;
-    dialog.classList.add(keyboardOnRight ? 'nudge-left' : 'nudge-right');
-}
-
 function fillLayoutSelect(select, layouts, selectedId) {
     select.innerHTML = '';
     layouts.forEach(({ id, name }) => {
@@ -432,7 +416,6 @@ function openSettings() {
     document.querySelector('.tab-panel[data-tab="general"]').classList.add('active');
 
     dialog.showModal();
-    updateSettingsNudge();
 
     document.getElementById('pickFolderBtn').onclick = async () => {
         try {
@@ -482,7 +465,6 @@ function openSettings() {
             const mode = document.querySelector('input[name="keyboardMode"]:checked')?.value || 'physical';
             keyboard.setMode(mode);
             storage.saveKeyboardMode(mode);
-            updateSettingsNudge();
             // Reflect the change in the live preview on the Speech & Input tab.
             handleSettingsTab(document.querySelector('#settingsTabs .settings-tab.active')?.dataset.tab);
         };
@@ -510,7 +492,6 @@ function openSettings() {
         const pos = sideDockPositionToggle.checked ? 'right' : 'left';
         keyboard.setSideDockPosition(pos);
         storage.saveSideDockPosition(pos);
-        updateSettingsNudge();
         keyboard.previewShow('side');
     };
     const persistPlaceholders = () => storage.savePlaceholderSettings(
@@ -521,7 +502,6 @@ function openSettings() {
     subsequentDelayInput.onchange = persistPlaceholders;
 
     document.getElementById('closeSettingsBtn').onclick = () => {
-        dialog.classList.remove('nudge-left', 'nudge-right');
         keyboard.previewHide();
         dialog.close();
     };

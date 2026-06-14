@@ -244,17 +244,20 @@ dialog[open] {
     height: min(30rem, calc(100vh - 3rem));
 }
 
-/* When the app keyboard side-docks for a Settings field, nudge the (centred)
-   panel to the opposite side so it clears the keyboard: keyboard on the right
-   → panel centres in the left region, and vice-versa. Set by app.js while
-   Settings is open in on-screen mode. A dragged panel keeps its inline
-   left/top, so this only affects the not-yet-dragged, centred case. */
-#settingsDialog.nudge-left {
+/* Nudge the (centred) Settings panel into the free region beside a SIDE-docked
+   keyboard so it clears the keys and stays on-screen. Driven entirely by the
+   body classes the keyboard sets, so it's automatically correct for whichever
+   side is showing — and absent when the keyboard is bottom-docked or hidden
+   (no stale nudge). max-width caps the panel to the free region so it can't
+   overflow off-screen. A dragged panel keeps its inline left/top (drag wins). */
+body.kbd-open.kbd-dock-side.kbd-side-right #settingsDialog {
     right: min(26rem, 46vw);
+    max-width: min(560px, calc(100vw - min(26rem, 46vw) - 2rem));
 }
 
-#settingsDialog.nudge-right {
+body.kbd-open.kbd-dock-side.kbd-side-left #settingsDialog {
     left: min(26rem, 46vw);
+    max-width: min(560px, calc(100vw - min(26rem, 46vw) - 2rem));
 }
 
 dialog::backdrop {
@@ -631,10 +634,12 @@ label.radio-label input[type="radio"] {
     flex: 1;
     overflow-y: auto;
     width: 100%;
-    /* Use all remaining horizontal space for the questions and answers (Ken,
-       June 2026). When the side keyboard is open, its padding-left/right
-       reservation (above) keeps the content clear of the keys; otherwise the
-       cards fill the full width. */
+    /* Readable column, not full viewport width (Ken, June 2026 — the cards were
+       too wide). Centred within the available region; the side keyboard's
+       reservation lives on #worldviewScreen (below), so the column sits cleanly
+       beside the keyboard on either side. ~40rem is tunable. */
+    max-width: 40rem;
+    margin: 0 auto;
     padding: 1rem 1.5rem 3rem;
 }
 
@@ -1095,10 +1100,12 @@ body.kbd-open.kbd-dock-bottom #worldviewContent {
     padding-bottom: 50vh;
 }
 
-body.kbd-open.kbd-dock-side.kbd-side-right #worldviewContent {
+/* Side dock reserves horizontal space on the About Me SCREEN (so both the
+   header and the centred content column clear the keyboard, on either side). */
+body.kbd-open.kbd-dock-side.kbd-side-right #worldviewScreen {
     padding-right: min(26rem, 46vw);
 }
 
-body.kbd-open.kbd-dock-side.kbd-side-left #worldviewContent {
+body.kbd-open.kbd-dock-side.kbd-side-left #worldviewScreen {
     padding-left: min(26rem, 46vw);
 }
