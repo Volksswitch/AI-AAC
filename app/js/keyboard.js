@@ -155,6 +155,46 @@ function consumeShift() {
     if (shiftState === 'shift') { shiftState = 'off'; applyShiftVisual(); }
 }
 
+// --- clipboard (cut / copy / paste toolbar) --------------------------------
+// A fixed Cut/Copy/Paste strip above the keys, the same for every layout. The
+// app keyboard suppresses the OS keyboard, so these give back the clipboard
+// affordances the OS keyboard would have provided (notably paste for the API
+// key). Buttons act on pointerdown + preventDefault so the field keeps focus
+// and its selection. localhost and https are secure contexts, so the async
+// Clipboard API is available.
+
+function selectedText() {
+    const f = activeField;
+    if (!f) return '';
+    return f.value.slice(f.selectionStart ?? 0, f.selectionEnd ?? 0);
+}
+
+function deleteSelection() {
+    const f = activeField;
+    if (!f) return;
+    const s = f.selectionStart ?? 0;
+    const e = f.selectionEnd ?? 0;
+    if (s === e) return;
+    f.value = f.value.slice(0, s) + f.value.slice(e);
+    f.setSelectionRange(s, s);
+    f.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+async function handleTool(tool) {
+    if (!activeField) return;
+    if (tool === 'copy' || tool === 'cut') {
+        const text = selectedText();
+        if (!text) return;
+        try { await navigator.clipboard.writeText(text); } catch { /* clipboard blocked */ }
+        if (tool === 'cut') deleteSelection();
+    } else if (tool === 'paste') {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text) insert(text);   // insert() replaces any selection at the caret
+        } catch { /* clipboard read blocked/denied */ }
+    }
+}
+
 // --- key handling -----------------------------------------------------------
 
 function handleKey(keyEl) {
@@ -184,11 +224,26 @@ function build() {
     // Act on pointerdown and preventDefault so the target field keeps focus
     // and the caret never moves (the standard on-screen-keyboard trick).
     rootEl.addEventListener('pointerdown', (e) => {
+        const tool = e.target.closest('.kbd-tool');
+        if (tool) { e.preventDefault(); handleTool(tool.dataset.tool); return; }
         const keyEl = e.target.closest('.kbd-key');
         if (!keyEl) return;
         e.preventDefault();
         handleKey(keyEl);
     });
+
+    // Persistent Cut/Copy/Paste toolbar above the keys (layout-independent).
+    const toolbar = document.createElement('div');
+    toolbar.className = 'kbd-toolbar';
+    for (const [tool, label] of [['cut', 'Cut'], ['copy', 'Copy'], ['paste', 'Paste']]) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'kbd-tool';
+        btn.dataset.tool = tool;
+        btn.textContent = label;
+        toolbar.appendChild(btn);
+    }
+    rootEl.appendChild(toolbar);
 
     renderRows();
     document.body.appendChild(rootEl);
@@ -200,7 +255,8 @@ function build() {
 // the keyboard and wide keys (space, etc.) keep their proportions.
 function renderRows() {
     if (!rootEl) return;
-    rootEl.innerHTML = '';
+    // Clear only the key rows — the Cut/Copy/Paste toolbar persists.
+    rootEl.querySelectorAll('.kbd-row').forEach((el) => el.remove());
     for (const row of currentRows()) {
         const rowEl = document.createElement('div');
         rowEl.className = 'kbd-row';

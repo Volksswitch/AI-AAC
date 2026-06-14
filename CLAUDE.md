@@ -296,6 +296,10 @@ Built (Ken's list) on top of the shared keyboard component (`app/js/keyboard.js`
 
 This also **moots the old "panel + Windows keyboard can't both fit vertically" issue** — there's no Windows keyboard in Settings anymore, and the side dock leaves the panel its full height. (The constant panel size from v0.2.11, `#settingsDialog { height: min(30rem, calc(100vh - 3rem)) }`, stays.)
 
+**Auto-nudge the panel clear of the keyboard (v0.2.15).** When Settings is open in on-screen mode, `app.js` `updateSettingsNudge()` adds `nudge-left`/`nudge-right` to `#settingsDialog`: keyboard on the right → panel re-centres in the left region (`#settingsDialog.nudge-left { right: min(26rem,46vw) }`), and vice-versa. Updated live when the keyboard-mode radio or the Left/Right slider changes; cleared on close. Uses `left`/`right` inset (not `transform`, which would break the fixed keyboard's edge-docking). A **dragged** panel keeps its inline `left/top` (drag wins), so the nudge only repositions the not-yet-dragged centred panel. On a wide tablet the panel fully clears the keyboard; on a viewport too narrow to fit both it pins against the keyboard edge (best effort).
+
+**Cut / Copy / Paste toolbar (v0.2.15).** A persistent `.kbd-toolbar` (Cut, Copy, Paste) sits above the keys, **layout-independent** (built once in `keyboard.js` `build()`; `renderRows()` clears only `.kbd-row` so the toolbar survives layout/page switches). Buttons act on `pointerdown`+`preventDefault` (field keeps focus/selection) → `handleTool()` uses the async Clipboard API: copy/cut `writeText(selection)` (cut also deletes the selection); paste `readText()` → `insert()` at the caret. This restores the clipboard affordances the OS keyboard would have given — **paste in particular for the long `sk-ant-…` API key**. *Clipboard needs a focused document + user gesture (both true in real use); it's blocked in the unfocused preview harness, so cut/copy/paste are verified for wiring (Cut removes the selection) but the actual clipboard round-trip must be confirmed on the tablet.*
+
 APP_VERSION / CACHE_VERSION → `0.2.11`. **Verified in preview** (on-screen mode, composer focused): keys 64px tall; letters page has no digit row + a `123` toggle; symbols page shows digits + specials + `ABC`/space/⌫/↵; one-shot shift capitalizes one letter then reverts (`Ab`); double-tap engages caps lock (`CD` stays upper); single tap (after >300 ms) unlocks; page toggles both ways; no console errors.
 
 ### Selectable layouts + window-aware docking (v0.2.13)
@@ -350,6 +354,7 @@ Phase-to-version mapping (update as releases are tagged):
 | 0.2.12  | 1     | App keyboard: dropped QWERTY for an Alphabetical layout (only layout for now); context-based docking — side dock for About Me/Settings, bottom dock for conversation |
 | 0.2.13  | 1     | App keyboard: 20 selectable layouts (data-driven) + Settings (side/bottom layout selects, left/right slider); side dock fills its column, About Me fills width, conversation field stays above the keyboard, both docks window-aware |
 | 0.2.14  | 1     | Settings panel uses the app keyboard (side-docked) instead of the Windows keyboard; keyboard reparents into the modal dialog's top layer so it stays interactive over the modal |
+| 0.2.15  | 1     | Auto-nudge the Settings panel clear of the side keyboard (opposite side); layout-independent Cut/Copy/Paste toolbar above the keyboard |
 
 ---
 
