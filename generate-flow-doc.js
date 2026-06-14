@@ -91,7 +91,7 @@ const doc = new Document({
             margin: { top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN } } },
         headers: { default: new Header({ children: [new Paragraph({
             alignment: AlignmentType.RIGHT,
-            children: [new TextRun({ text: "AI-Enabled AAC — Partner Speech Capture", italics: true, color: "808080", size: 18, font: "Arial" })]
+            children: [new TextRun({ text: "AI-Driven AAC — Partner Speech Capture", italics: true, color: "808080", size: 18, font: "Arial" })]
         })]})},
         footers: { default: new Footer({ children: [new Paragraph({
             alignment: AlignmentType.CENTER,

@@ -1,4 +1,4 @@
-# AI-Enabled AAC — Project Context for Claude
+# AI-Driven AAC — Project Context for Claude
 
 ## About Ken (the user)
 Ken Hackbarth is President and Founder of Volksswitch.org. He has a three-decade background as a systems engineer at AT&T Bell Laboratories. He is **not** a developer or AI/AAC researcher — he is a product manager and systems thinker. He defines requirements, makes feature decisions, and recruits beta testers. Claude Code is the developer.
@@ -8,7 +8,7 @@ Published author: "Revolutionizing Augmentative and Alternative Communication wi
 ---
 
 ## Project Vision
-Build an AI-enabled AAC system that gives non-speaking individuals access to **real-time conversation** — currently impossible with existing AAC devices. The core problem is not words-per-minute; it is the human aversion to awkward silence (~4 seconds). AAC users are locked into near-real-time or batch communication, which marginalizes them and restricts them to transactional rather than interactional communication.
+Build an AI-driven AAC system that gives non-speaking individuals access to **real-time conversation** — currently impossible with existing AAC devices. The core problem is not words-per-minute; it is the human aversion to awkward silence (~4 seconds). AAC users are locked into near-real-time or batch communication, which marginalizes them and restricts them to transactional rather than interactional communication.
 
 **Mechanism:** Generative AI presents response options within seconds of a communication partner's utterance. The user selects one; the device speaks it. The system speaks *as* the user, not *for* them.
 
@@ -104,7 +104,7 @@ The long-term vision is for the system to begin generating and refining response
 ---
 
 ## Strategic Context
-Prior attempts at AI-enabled AAC have been shelved when funding ran out. Ken's architecture avoids this by:
+Prior attempts at AI-driven AAC have been shelved when funding ran out. Ken's architecture avoids this by:
 - **No server infrastructure** the project must pay for
 - **User-funded AI** — users bring their own API key, pay only for what they use
 
@@ -207,7 +207,7 @@ The worldview model (Architecture Overview §6) has a concrete questionnaire des
 Also decided this session: the **type-and-speak composer** ("In My Own Words", § "Free Composition + Virtual Keyboard") is built alongside Build Step 1 as the manual worldview test pathway. See that section.
 
 **Next-session kickoff prompt:**
-> We're continuing the AI-Enabled AAC worldview questionnaire work. Read the "Worldview Questionnaire (June 2026)" section of CLAUDE.md and the two design docs in this folder: `Worldview-Questionnaire-Draft1.docx` (question bank) and `Worldview-Implementation-Plan.docx` (build-ready plan). Two phases this session.
+> We're continuing the AI-Driven AAC worldview questionnaire work. Read the "Worldview Questionnaire (June 2026)" section of CLAUDE.md and the two design docs in this folder: `Worldview-Questionnaire-Draft1.docx` (question bank) and `Worldview-Implementation-Plan.docx` (build-ready plan). Two phases this session.
 >
 > **Phase 1 — Resolve the open decisions first, with me.** Plan doc §11 lists five decisions to confirm before building: (1) size of the first-cut Tier-A set (full vs. smaller starter); (2) contact info (A5) — per-field "assistant may share if I pick it" toggle vs. strict phrase-around for now; (3) target chunk size (questions per session); (4) whether Tier-B beliefs (B5) ships in this build or waits; (5) symbol/picture answers + supporter-assisted mode now or later. Use AskUserQuestion, recommend a default for each, and record my answers in this CLAUDE.md section.
 >

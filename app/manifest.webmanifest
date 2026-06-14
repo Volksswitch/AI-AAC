@@ -1,7 +1,7 @@
 {
   "name": "AAC Conversation Assistant",
   "short_name": "AAC Assist",
-  "description": "AI-enabled AAC giving non-speaking individuals access to real-time conversation. Generative AI presents response options within seconds of a communication partner's utterance.",
+  "description": "AI-driven AAC giving non-speaking individuals access to real-time conversation. Generative AI presents response options within seconds of a communication partner's utterance.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
