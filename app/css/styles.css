@@ -234,6 +234,16 @@ dialog[open] {
     flex-direction: column;
 }
 
+/* Fixed panel height so the dialog is the SAME size on every tab — its size must
+   not be a function of how many options a tab has (General vs. Conversation).
+   The content area scrolls within this height. Capped to the viewport so it
+   still fits on a short screen. (NOTE: when the Windows on-screen keyboard is up
+   while editing a Settings field, panel + keyboard still can't both fit
+   vertically — see the keyboard-for-Settings discussion in CLAUDE.md.) */
+#settingsDialog {
+    height: min(30rem, calc(100vh - 3rem));
+}
+
 dialog::backdrop {
     background: rgba(0, 0, 0, 0.5);
 }
@@ -869,7 +879,7 @@ label.radio-label input[type="radio"] {
 .kbd-key {
     flex: 1 1 0;
     min-width: 0;
-    min-height: 3.2rem;
+    min-height: 4rem;            /* 25% taller than the original 3.2rem */
     border: 1px solid #b8c0c6;
     border-radius: 8px;
     background: #fff;
@@ -892,20 +902,30 @@ label.radio-label input[type="radio"] {
 
 .kbd-shift,
 .kbd-backspace,
-.kbd-enter {
+.kbd-enter,
+.kbd-page {
     flex: 1.5 1 0;
     background: #d4dade;
     font-size: 1.2rem;
 }
 
+/* One-shot shift (next letter only) — lighter than the solid caps-lock state. */
+#appKeyboard.kbd-shift-on .kbd-shift {
+    background: #5a7891;
+    color: #fff;
+    border-color: #5a7891;
+}
+
+/* Caps lock (engaged by a double tap) — solid dark, clearly "stuck on". */
 #appKeyboard.kbd-caps .kbd-shift {
     background: #2c3e50;
     color: #fff;
     border-color: #2c3e50;
 }
 
-/* Reserve room so the focused field can scroll clear of the keyboard. */
+/* Reserve room so the focused field can scroll clear of the keyboard
+   (taller keys + the symbols page leave it 5 rows tall). */
 body.kbd-open main,
 body.kbd-open #worldviewContent {
-    padding-bottom: 19rem;
+    padding-bottom: 23rem;
 }

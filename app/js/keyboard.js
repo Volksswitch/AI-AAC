@@ -25,17 +25,37 @@ const IN_SCOPE = '#composerInput, .wv-text';
 let mode = 'physical';          // 'physical' | 'onscreen'
 let rootEl = null;              // the keyboard panel
 let activeField = null;         // the input/textarea currently being typed into
-let caps = false;
 
-// Layout — a digit row keeps numbers (age, etc.) one tap away without a
-// symbol-layer toggle; the bottom row covers the punctuation real names,
-// places and free text actually need.
-const ROWS = [
-    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+// Shift state machine (CLAUDE.md keyboard spec, June 2026):
+//   'off'   — lowercase
+//   'shift' — one-shot: next letter is uppercase, then auto-reverts to 'off'
+//   'lock'  — caps lock: stays uppercase until shift is tapped again
+// A single tap toggles off↔shift; a double tap (within SHIFT_DOUBLE_TAP_MS)
+// engages 'lock'. A non-touch-typing user gets a Caps-Lock-style sticky shift
+// without having to hold a key.
+let shiftState = 'off';
+let lastShiftTap = 0;
+const SHIFT_DOUBLE_TAP_MS = 300;
+
+// Which page is showing: 'letters' or 'symbols'. Numbers and special
+// characters live on the symbols page (toggled with the 123 / ABC key) so
+// the letters page stays uncluttered. Comma, period, space and backspace stay
+// on the letters page per Ken's spec; space, backspace and enter are repeated
+// on the symbols page because editing is impossible without them.
+let page = 'letters';
+
+const LETTER_ROWS = [
     ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
     ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
     [{ action: 'shift', label: '⇧' }, 'z', 'x', 'c', 'v', 'b', 'n', 'm', { action: 'backspace', label: '⌫' }],
-    [',', { action: 'space', label: 'space', wide: true }, '.', "'", '-', { action: 'enter', label: '↵' }]
+    [{ action: 'page', label: '123' }, ',', { action: 'space', label: 'space', wide: true }, '.', { action: 'enter', label: '↵' }]
+];
+
+const SYMBOL_ROWS = [
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+    ['@', '#', '$', '%', '&', '*', '(', ')', '-', '+'],
+    ['!', '?', "'", '"', ':', ';', '/', '=', '_', '~'],
+    [{ action: 'page', label: 'ABC' }, { action: 'space', label: 'space', wide: true }, { action: 'backspace', label: '⌫' }, { action: 'enter', label: '↵' }]
 ];
 
 // --- field helpers ----------------------------------------------------------
@@ -82,6 +102,11 @@ function backspace() {
 }
 
 function enter() {
+    // TODO (Ken, June 2026 — to discuss/revisit): Enter may need to behave
+    // differently per context (newline vs. save vs. speak), and the keyboard
+    // likely needs a formal "close/done" key rather than relying on Enter or a
+    // focus-out to dismiss it. Current behavior: newline in a textarea, save in
+    // a single-line field. See CLAUDE.md "App virtual keyboard" notes.
     const f = activeField;
     if (!f) return;
     if (f.tagName === 'TEXTAREA') {
@@ -93,28 +118,48 @@ function enter() {
     }
 }
 
-function setCaps(on) {
-    caps = on;
+function applyShiftVisual() {
     if (!rootEl) return;
-    rootEl.classList.toggle('kbd-caps', caps);
+    rootEl.classList.toggle('kbd-shift-on', shiftState === 'shift');
+    rootEl.classList.toggle('kbd-caps', shiftState === 'lock');
+    const upper = shiftState !== 'off';
     rootEl.querySelectorAll('.kbd-key[data-char]').forEach((k) => {
         const ch = k.dataset.char;
-        if (/[a-z]/i.test(ch)) k.textContent = caps ? ch.toUpperCase() : ch.toLowerCase();
+        if (/[a-z]/i.test(ch)) k.textContent = upper ? ch.toUpperCase() : ch.toLowerCase();
     });
+}
+
+function onShift() {
+    const now = Date.now();
+    if (now - lastShiftTap < SHIFT_DOUBLE_TAP_MS) {
+        shiftState = 'lock';                                  // double tap → caps lock
+    } else {
+        shiftState = shiftState === 'off' ? 'shift' : 'off';  // single tap toggles
+    }
+    lastShiftTap = now;
+    applyShiftVisual();
+}
+
+// One-shot shift reverts to lowercase after a single character; caps lock stays.
+function consumeShift() {
+    if (shiftState === 'shift') { shiftState = 'off'; applyShiftVisual(); }
 }
 
 // --- key handling -----------------------------------------------------------
 
 function handleKey(keyEl) {
     const action = keyEl.dataset.action;
-    if (action === 'shift') { setCaps(!caps); return; }
+    if (action === 'shift') { onShift(); return; }
+    if (action === 'page') { page = page === 'symbols' ? 'letters' : 'symbols'; renderRows(); return; }
     if (action === 'backspace') { backspace(); return; }
-    if (action === 'space') { insert(' '); return; }
+    if (action === 'space') { insert(' '); consumeShift(); return; }
     if (action === 'enter') { enter(); return; }
 
     const ch = keyEl.dataset.char;
     if (ch == null) return;
-    insert(caps && /[a-z]/i.test(ch) ? ch.toUpperCase() : ch);
+    const upper = shiftState !== 'off';
+    insert(upper && /[a-z]/i.test(ch) ? ch.toUpperCase() : ch);
+    consumeShift();
 }
 
 // --- DOM build --------------------------------------------------------------
@@ -126,7 +171,26 @@ function build() {
     rootEl.setAttribute('role', 'group');
     rootEl.setAttribute('aria-label', 'On-screen keyboard');
 
-    for (const row of ROWS) {
+    // Act on pointerdown and preventDefault so the target field keeps focus
+    // and the caret never moves (the standard on-screen-keyboard trick).
+    rootEl.addEventListener('pointerdown', (e) => {
+        const keyEl = e.target.closest('.kbd-key');
+        if (!keyEl) return;
+        e.preventDefault();
+        handleKey(keyEl);
+    });
+
+    renderRows();
+    document.body.appendChild(rootEl);
+}
+
+// (Re)builds the key buttons for the current page. The pointerdown handler is
+// delegated on rootEl, so swapping the inner rows on a page toggle is safe.
+function renderRows() {
+    if (!rootEl) return;
+    rootEl.innerHTML = '';
+    const rows = page === 'symbols' ? SYMBOL_ROWS : LETTER_ROWS;
+    for (const row of rows) {
         const rowEl = document.createElement('div');
         rowEl.className = 'kbd-row';
         for (const key of row) {
@@ -147,17 +211,7 @@ function build() {
         }
         rootEl.appendChild(rowEl);
     }
-
-    // Act on pointerdown and preventDefault so the target field keeps focus
-    // and the caret never moves (the standard on-screen-keyboard trick).
-    rootEl.addEventListener('pointerdown', (e) => {
-        const keyEl = e.target.closest('.kbd-key');
-        if (!keyEl) return;
-        e.preventDefault();
-        handleKey(keyEl);
-    });
-
-    document.body.appendChild(rootEl);
+    applyShiftVisual();
 }
 
 // --- show / hide ------------------------------------------------------------
@@ -174,7 +228,10 @@ function show(field) {
 
 function hide() {
     activeField = null;
-    setCaps(false);
+    // Reset to a clean slate for the next field: lowercase, letters page.
+    shiftState = 'off';
+    page = 'letters';
+    renderRows();
     if (rootEl) rootEl.classList.add('hidden');
     document.body.classList.remove('kbd-open');
 }

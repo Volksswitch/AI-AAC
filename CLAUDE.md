@@ -271,6 +271,29 @@ Open sub-questions deferred to build time: where the composer sits relative to t
 
 APP_VERSION / CACHE_VERSION → `0.2.10`. **Verified in preview:** worker registers + activates + controls the page, version 0.2.10 in About, no console errors, **no reload loop** on localhost (controllerchange doesn't fire after the first claim when nothing's new). *The redeploy→auto-reload path itself can't be exercised in the preview (needs a real new deployment) — confirm on the test tablet that a fresh deploy now appears on relaunch without a hard refresh.*
 
+## App virtual keyboard — refinements + open design questions (June 14 2026), v0.2.11
+
+Built (Ken's list) on top of the shared keyboard component (`app/js/keyboard.js`, `styles.css`):
+
+1. **Keys 25% taller** — `.kbd-key min-height` 3.2rem → **4rem** (64px verified). `body.kbd-open` field clearance bumped 19rem → 23rem.
+2. **Numbers + special characters on a separate page.** Two layouts: `LETTER_ROWS` (QWERTY letters + ⇧ + ⌫ + a bottom row of `123` toggle, comma, space, period, ↵) and `SYMBOL_ROWS` (digits row, two rows of specials `@#$%&*()-+` / `!?'":;/=_~`, bottom row `ABC` toggle + space + ⌫ + ↵). A `page` state + a `'page'` action key flip between them; `renderRows()` rebuilds (pointerdown handler is delegated on the root so swapping inner rows is safe). **Comma, period, space, backspace stay on the letters page per Ken;** space/backspace/enter are *also* on the symbols page because editing is impossible without them (flag if Ken wants them stripped to a strict letters-only home).
+3. **Shift = one-shot, double-tap = lock.** New state machine: `'off' | 'shift' | 'lock'`. Single tap toggles off↔shift; a **double tap within 300 ms** (`SHIFT_DOUBLE_TAP_MS`) engages caps **lock**. One-shot `'shift'` auto-reverts to `'off'` after one character (`consumeShift()`); `'lock'` persists until shift is tapped again. Visuals: `.kbd-shift-on` (lighter blue, one-shot) vs `.kbd-caps` (solid dark, locked).
+
+**NOTE — Enter key & a formal close button (Ken, to discuss).** `enter()` currently does newline-in-textarea / save-in-single-line. Ken flagged that **Enter may need to behave differently per context**, and the keyboard **likely needs a formal "close/done" key** rather than relying on Enter or focus-out to dismiss it. TODO comment left in `keyboard.js enter()`. Not yet designed.
+
+**OPEN QUESTION — keyboard layout for non-touch-typists (Ken raised; Claude's recommendation).** The target users are **not touch-typists, so QWERTY is the wrong default.** Reasonable alternatives:
+- **Alphabetical (ABC) grid** — A–Z in order; easiest to *scan* for someone who doesn't know QWERTY muscle memory. Strong default candidate.
+- **Frequency-ordered** (e.g. ETAOIN-style, most-common letters central/large) — fewer/shorter reaches for direct select, but a learning curve and less "scannable."
+- **Matrix/grid layouts** generally (rectangular A–Z + space) — best fit for the **future scanning / eye-gaze renderers** (row/column scan maps naturally to a grid), consistent with the access-method-independence invariant.
+- Letter **prediction/completion** is a later layer, not a base layout.
+- **Recommendation:** yes, make **layout a Settings option** (consistent with the configurability philosophy — everything user-determined). Ship **Alphabetical** alongside QWERTY first; design layouts as pure data (the `LETTER_ROWS`/`SYMBOL_ROWS` arrays already are), so adding one is data, not code. *Awaiting Ken's decision on which layouts to ship and whether to build the setting now.*
+
+**OPEN QUESTION — Windows keyboard vs. app keyboard when editing the Settings panel (Ken, to discuss).** Today Settings fields use the **OS/physical** keyboard (the app keyboard is scoped to the composer + worldview only). Need to decide whether Settings should switch to the app keyboard too. Trade-off to work through: the app keyboard gives consistent sizing/access-method support, but **switching away from the OS keyboard loses OS affordances — copy/paste being the prime example** (also autofill, spellcheck, dictation). Settings is Setup-tier and often supporter-entered (esp. the API key, where paste matters a lot), which argues for keeping the OS keyboard there. Unresolved.
+
+**ISSUE — Settings panel size vs. the Windows keyboard (partly addressed v0.2.11).** Fixed: the panel is now a **constant size on every tab** — `#settingsDialog { height: min(30rem, calc(100vh - 3rem)) }` — so its size is no longer a function of how many options a tab has (General vs. Conversation); the content scrolls within. **Still open:** when the Windows on-screen keyboard is up while editing a Settings field, the **panel + keyboard can't both fit vertically** (the Conversation tab especially). Fully solving this depends on the keyboard-for-Settings decision above (and/or reacting to `visualViewport` to shrink/anchor the panel when the OS keyboard appears). Recorded, not yet solved.
+
+APP_VERSION / CACHE_VERSION → `0.2.11`. **Verified in preview** (on-screen mode, composer focused): keys 64px tall; letters page has no digit row + a `123` toggle; symbols page shows digits + specials + `ABC`/space/⌫/↵; one-shot shift capitalizes one letter then reverts (`Ab`); double-tap engages caps lock (`CD` stays upper); single tap (after >300 ms) unlocks; page toggles both ways; no console errors.
+
 ## Settings Panel — usability pass (June 14 2026), v0.2.8
 
 Six Settings-panel improvements shipped (Ken's list), modeled on the Keyguard Designer web app's settings panel (`keyguard-designer-web/app.html`, the second working directory):
@@ -303,6 +326,7 @@ Phase-to-version mapping (update as releases are tagged):
 | 0.2.8   | 1     | Settings panel usability pass: Close label, draggable modal, live-apply settings, point-release version in About, scrolling panel, General tab split into Speech & Input + Conversation tabs |
 | 0.2.9   | 1     | Fix v0.2.8 regression: dialog flex layout scoped to [open] so the panel no longer shows at startup and Close works; touch-action:none on the drag handle for full-distance touch drags |
 | 0.2.10  | 1     | Auto-update on launch/Start: SW revalidates (no-cache) to beat the GitHub Pages HTTP cache; controllerchange auto-reload rolls in a redeployed worker; update check on Start |
+| 0.2.11  | 1     | App keyboard: 25%-taller keys, numbers/specials moved to a separate page, one-shot shift with double-tap caps lock; Settings panel fixed to a constant size per tab |
 
 ---
 
