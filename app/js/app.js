@@ -6,6 +6,7 @@ import * as storage from './storage.js';
 import * as placeholders from './placeholders.js';
 import * as worldview from './worldview.js';
 import * as worldviewUI from './worldview-ui.js';
+import * as keyboard from './keyboard.js';
 
 const conversationHistory = [];
 let isListening = false;
@@ -40,6 +41,8 @@ function initApp() {
     ui.onSettingsClick(openSettings);
     ui.onAboutMeClick(worldviewUI.open);
     worldviewUI.init();
+    keyboard.init();
+    keyboard.setMode(storage.loadKeyboardMode());
     initSettingsTabs();
 
     tts.onVoicesReady(() => {
@@ -294,6 +297,9 @@ function openSettings() {
     populateVoiceSelect();
     silenceThresholdInput.value = storage.loadSilenceThreshold();
     autoRelistenInput.checked = storage.loadAutoRelisten();
+    const keyboardMode = storage.loadKeyboardMode();
+    const keyboardRadio = document.querySelector(`input[name="keyboardMode"][value="${keyboardMode}"]`);
+    if (keyboardRadio) keyboardRadio.checked = true;
     updateUsageDisplay();
     const placeholderSettings = storage.loadPlaceholderSettings();
     initialDelayInput.value = placeholderSettings.initialDelay;
@@ -342,6 +348,9 @@ function openSettings() {
         stt.setSilenceThreshold(threshold);
         storage.saveSilenceThreshold(threshold);
         storage.saveAutoRelisten(autoRelistenInput.checked);
+        const keyboardMode = document.querySelector('input[name="keyboardMode"]:checked')?.value || 'physical';
+        storage.saveKeyboardMode(keyboardMode);
+        keyboard.setMode(keyboardMode);
         storage.savePlaceholderSettings(
             Number(initialDelayInput.value),
             Number(subsequentDelayInput.value)

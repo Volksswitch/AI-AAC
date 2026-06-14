@@ -92,6 +92,20 @@
                         <button id="testVoiceBtn" type="button">Test</button>
                     </div>
                     <div class="setting-group">
+                        <label>Keyboard for typing</label>
+                        <div class="radio-row">
+                            <label class="radio-label">
+                                <input type="radio" name="keyboardMode" value="physical" checked>
+                                My physical keyboard
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="keyboardMode" value="onscreen">
+                                On-screen keyboard (app's own)
+                            </label>
+                        </div>
+                        <p class="setting-hint">How you type into the app's text fields ("About Me" and "In your own words"). <strong>On-screen keyboard</strong> shows the app's own keyboard and stops Windows from popping its keyboard. <strong>Physical keyboard</strong> uses the keyboard attached to your tablet. Takes effect on the next field you tap.</p>
+                    </div>
+                    <div class="setting-group">
                         <label for="silenceThresholdInput">Optional Responses silence period</label>
                         <select id="silenceThresholdInput">
                             <option value="1.5">1.5 seconds</option>

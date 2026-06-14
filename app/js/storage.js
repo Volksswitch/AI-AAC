@@ -161,6 +161,19 @@ export function saveAutoRelisten(enabled) {
     saveSettings(settings);
 }
 
+// 'physical' (use the attached keyboard) | 'onscreen' (the app's own keyboard).
+// Default 'physical' — the primary Surface setup is the type cover in laptop
+// position, where Windows shows no keyboard and the physical one is in use.
+export function loadKeyboardMode() {
+    return loadSettings().keyboardMode === 'onscreen' ? 'onscreen' : 'physical';
+}
+
+export function saveKeyboardMode(mode) {
+    const settings = loadSettings();
+    settings.keyboardMode = mode === 'onscreen' ? 'onscreen' : 'physical';
+    saveSettings(settings);
+}
+
 // --- Conversation logging ---
 
 let conversationDirHandle = null;
