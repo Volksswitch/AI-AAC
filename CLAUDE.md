@@ -260,6 +260,19 @@ Free composition is one of the **invariants** (Configuration Model): the user mu
 
 Open sub-questions deferred to build time: where the composer sits relative to the move palette (screen allocation — already an open UI question), and whether the type-and-speak composer should also push the spoken utterance into conversation history like a selected response.
 
+## Settings Panel — usability pass (June 14 2026), v0.2.8
+
+Six Settings-panel improvements shipped (Ken's list), modeled on the Keyguard Designer web app's settings panel (`keyguard-designer-web/app.html`, the second working directory):
+
+1. **"Cancel" → "Close".** Footer button relabeled (`index.html`). Behavior unchanged — it dismisses without persisting; **Save** persists.
+2. **Draggable modal.** Added a dark title-bar `#settingsHeader` ("Settings" + faint "drag to move" hint) as the drag handle. `initSettingsDrag()` in `app.js` (adapted from Keyguard's `mousedown` drag, but using **pointer events** + `setPointerCapture`): on first drag it converts the native `<dialog>`'s UA centering to pixel `left/top` with `margin:0`, then tracks the pointer clamped to the viewport. Stays modal — the backdrop still blocks the app behind it — but can be moved aside. Position persists for the session.
+3. **Live-apply of UI/behavior settings while the modal is open.** Settings that change app behavior now take effect on `change`, not only on Save, so (with the panel dragged aside) the effect is visible/audible immediately — the pattern Keyguard uses. Wired in `openSettings()` via `.onchange`: voice (`tts.setVoice`), silence threshold (`stt.setSilenceThreshold`), keyboard mode (`keyboard.setMode`). Save persists to storage; Close keeps the live changes for the session. This is the **foundation for future UI-customization settings** Ken flagged as coming.
+4. **Point-release version in About.** `APP_VERSION` constant in `app.js` (currently `0.2.8`) injected into `#aboutVersion`; About now reads "Version 0.2.8 — Phase 1 Proof of Concept". **Bump `APP_VERSION` alongside `sw.js` CACHE_VERSION every release** — crucial for beta-tester bug reports.
+5. **Scrolling panel.** Dialog is now a flex **column** (`display:flex; flex-direction:column; max-height:calc(100vh - 3rem)`) with the header + footer pinned (`flex-shrink:0`) and `#settingsContent` scrolling (`flex:1; min-height:0` on `#settingsLayout`). *Gotcha recorded:* `display:flex` on a `<dialog>` **drops the UA's auto-centering** (computed margin → 0, pins top-left) — restored explicitly with `inset:0; margin:auto`, which the drag code cleanly overrides with `margin:0 + left/top`.
+6. **General tab shortened (Ken's call: "add Speech + Conversation tabs").** Tabs are now **General** (API Key, About You pointer, Data Folder) / **Speech & Input** (Voice, Keyboard for typing) / **Conversation** (silence period, auto-resume, + the former Placeholders delays folded in) / **About**. The standalone Placeholders tab is gone. Tab-switching JS is generic (`data-tab`), so no handler changes were needed.
+
+CACHE_VERSION → `aac-v0.2.8`. **Verified in preview:** tabs distribute correctly; Close label; version 0.2.8 in About; header `cursor:move`; drag moves precisely and clamps to viewport edges; default open re-centers after the flex fix; long (Conversation) tab scrolls on a short viewport with footer pinned; no console errors. *Note:* drag tested via synthetic PointerEvents (harness window isn't OS-focused) — confirm real touch/mouse drag on the test tablet.
+
 ## Versioning
 
 Format: **major.minor** (e.g., `0.1`, `0.2`). All pre-release versions use major `0`. The decision to increment to `1.0` or beyond is made jointly by Ken and Claude Code based on maturity and readiness.
@@ -274,6 +287,7 @@ Phase-to-version mapping (update as releases are tagged):
 |---------|-------|-------|
 | 0.1     | 1     | Core conversation loop proof of concept |
 | 0.2     | 1     | Continuous partner capture; persistent "Please repeat" control; auto-resume-listening setting |
+| 0.2.8   | 1     | Settings panel usability pass: Close label, draggable modal, live-apply settings, point-release version in About, scrolling panel, General tab split into Speech & Input + Conversation tabs |
 
 ---
 

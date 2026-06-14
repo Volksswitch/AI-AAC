@@ -70,10 +70,15 @@
     </div>
 
     <dialog id="settingsDialog">
+        <div id="settingsHeader">
+            <span id="settingsTitle">Settings</span>
+            <span id="settingsDragHint">drag to move</span>
+        </div>
         <div id="settingsLayout">
             <nav id="settingsTabs">
                 <div class="settings-tab active" data-tab="general">General</div>
-                <div class="settings-tab" data-tab="placeholders">Placeholders</div>
+                <div class="settings-tab" data-tab="speech">Speech &amp; Input</div>
+                <div class="settings-tab" data-tab="conversation">Conversation</div>
                 <div class="settings-tab" data-tab="about">About</div>
             </nav>
             <div id="settingsContent">
@@ -86,6 +91,16 @@
                         <label>About You</label>
                         <p class="setting-hint">Your name and personal details now live in <strong>About Me</strong> (top of the screen) — a richer profile the assistant uses to speak as you.</p>
                     </div>
+                    <div class="setting-group">
+                        <label>Data Folder</label>
+                        <div id="dataFolderRow">
+                            <span id="dataFolderName" class="placeholder">No folder selected</span>
+                            <button id="pickFolderBtn" type="button">Choose Folder</button>
+                        </div>
+                        <p class="setting-hint">Local folder for conversation history and user data. Synced by OneDrive, not uploaded to the cloud.</p>
+                    </div>
+                </div>
+                <div class="tab-panel" data-tab="speech">
                     <div class="setting-group">
                         <label for="voiceSelect">Voice</label>
                         <select id="voiceSelect"></select>
@@ -105,6 +120,8 @@
                         </div>
                         <p class="setting-hint">How you type into the app's text fields ("About Me" and "In your own words"). <strong>On-screen keyboard</strong> shows the app's own keyboard and stops Windows from popping its keyboard. <strong>Physical keyboard</strong> uses the keyboard attached to your tablet. Takes effect on the next field you tap.</p>
                     </div>
+                </div>
+                <div class="tab-panel" data-tab="conversation">
                     <div class="setting-group">
                         <label for="silenceThresholdInput">Optional Responses silence period</label>
                         <select id="silenceThresholdInput">
@@ -123,16 +140,6 @@
                         </label>
                         <p class="setting-hint">When on, partner recording turns back on by itself after you select a response and it is spoken — no need to tap Start Listening for the next exchange. Default is off.</p>
                     </div>
-                    <div class="setting-group">
-                        <label>Data Folder</label>
-                        <div id="dataFolderRow">
-                            <span id="dataFolderName" class="placeholder">No folder selected</span>
-                            <button id="pickFolderBtn" type="button">Choose Folder</button>
-                        </div>
-                        <p class="setting-hint">Local folder for conversation history and user data. Synced by OneDrive, not uploaded to the cloud.</p>
-                    </div>
-                </div>
-                <div class="tab-panel" data-tab="placeholders">
                     <div class="setting-group">
                         <label for="initialDelayInput">Initial Placeholder Statement Delay</label>
                         <select id="initialDelayInput">
@@ -157,7 +164,7 @@
                 </div>
                 <div class="tab-panel" data-tab="about">
                     <h3>AAC Conversation Assistant</h3>
-                    <p class="about-version">Version 0.2 — Phase 1 Proof of Concept</p>
+                    <p class="about-version">Version <span id="aboutVersion">0.2</span> — Phase 1 Proof of Concept</p>
                     <p class="about-description">AI-driven AAC giving non-speaking individuals access to real-time conversation. Generative AI presents response options within seconds of a communication partner's utterance.</p>
                     <div class="setting-group usage-group">
                         <label>Estimated API Cost</label>
@@ -175,7 +182,7 @@
         </div>
         <div class="dialog-actions">
             <button id="saveSettingsBtn">Save</button>
-            <button id="closeSettingsBtn">Cancel</button>
+            <button id="closeSettingsBtn">Close</button>
         </div>
     </dialog>
 

@@ -8,6 +8,11 @@ import * as worldview from './worldview.js';
 import * as worldviewUI from './worldview-ui.js';
 import * as keyboard from './keyboard.js';
 
+// Point-release version shown in Settings → About. Bump alongside the
+// sw.js CACHE_VERSION on every release so beta testers can report exactly
+// which build they're on.
+const APP_VERSION = '0.2.8';
+
 const conversationHistory = [];
 let isListening = false;
 let lastResponseOptions = [];
@@ -44,6 +49,9 @@ function initApp() {
     keyboard.init();
     keyboard.setMode(storage.loadKeyboardMode());
     initSettingsTabs();
+    initSettingsDrag();
+    const versionEl = document.getElementById('aboutVersion');
+    if (versionEl) versionEl.textContent = APP_VERSION;
 
     tts.onVoicesReady(() => {
         const savedURI = storage.loadVoiceURI();
@@ -231,6 +239,52 @@ function initSettingsTabs() {
     });
 }
 
+// Drag-to-move for the Settings dialog (pattern borrowed from the Keyguard
+// Designer app). The panel stays modal — the backdrop still blocks the app
+// behind it — but can be dragged aside by its title bar so live UI changes are
+// visible behind it. A native <dialog> is centered by the UA with auto margins;
+// on the first drag we convert that to pixel left/top with margin:0, then track
+// the pointer, clamping to the viewport. Position persists for the session.
+function initSettingsDrag() {
+    const dialog = document.getElementById('settingsDialog');
+    const handle = document.getElementById('settingsHeader');
+    if (!dialog || !handle) return;
+    let dragging = false, offsetX = 0, offsetY = 0, positioned = false;
+
+    handle.addEventListener('pointerdown', (e) => {
+        // On the first drag, pin the dialog to its current rect so left/top win
+        // over the UA's centering margins.
+        const r = dialog.getBoundingClientRect();
+        if (!positioned) {
+            dialog.style.margin = '0';
+            dialog.style.left = `${r.left}px`;
+            dialog.style.top = `${r.top}px`;
+            positioned = true;
+        }
+        dragging = true;
+        offsetX = e.clientX - r.left;
+        offsetY = e.clientY - r.top;
+        handle.setPointerCapture(e.pointerId);
+        e.preventDefault();
+    });
+
+    handle.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        const maxX = window.innerWidth - dialog.offsetWidth;
+        const maxY = window.innerHeight - dialog.offsetHeight;
+        dialog.style.left = `${Math.max(0, Math.min(e.clientX - offsetX, maxX))}px`;
+        dialog.style.top = `${Math.max(0, Math.min(e.clientY - offsetY, maxY))}px`;
+    });
+
+    const stop = (e) => {
+        if (!dragging) return;
+        dragging = false;
+        try { handle.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    };
+    handle.addEventListener('pointerup', stop);
+    handle.addEventListener('pointercancel', stop);
+}
+
 function populateVoiceSelect() {
     const select = document.getElementById('voiceSelect');
     const voices = tts.getVoices();
@@ -339,6 +393,18 @@ function openSettings() {
         tts.setVoice(voiceSelect.value || null);
         tts.speak('This is how I will sound during our conversation.');
     };
+
+    // Live-apply: settings that change the app's behavior or UI take effect
+    // immediately on change, even while the (draggable) modal is still open, so
+    // the user can move the panel aside and see/hear the effect right away.
+    // Save persists these to storage; Close keeps them for the session.
+    voiceSelect.onchange = () => tts.setVoice(voiceSelect.value || null);
+    silenceThresholdInput.onchange = () => stt.setSilenceThreshold(Number(silenceThresholdInput.value));
+    document.querySelectorAll('input[name="keyboardMode"]').forEach(radio => {
+        radio.onchange = () => keyboard.setMode(
+            document.querySelector('input[name="keyboardMode"]:checked')?.value || 'physical'
+        );
+    });
 
     document.getElementById('saveSettingsBtn').onclick = () => {
         const key = apiKeyInput.value.trim();

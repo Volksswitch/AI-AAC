@@ -218,15 +218,54 @@ dialog {
     width: 92%;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     overflow: hidden;
+    /* Flex column so the header + footer stay put and only the content scrolls.
+       Cap the height so a long tab scrolls instead of overflowing the viewport. */
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 3rem);
+    /* display:flex drops the UA's auto-centering of a modal <dialog>, so restore
+       it explicitly. inset:0 + margin:auto centers; the drag code (initSettingsDrag)
+       overrides with margin:0 + left/top to reposition. */
+    inset: 0;
+    margin: auto;
 }
 
 dialog::backdrop {
     background: rgba(0, 0, 0, 0.5);
 }
 
+/* Draggable title bar (see initSettingsDrag in app.js). The panel stays modal —
+   the backdrop still blocks the app behind it — but can be moved aside so live
+   UI changes are visible behind it. */
+#settingsHeader {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    background: #2c3e50;
+    color: #fff;
+    cursor: move;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+#settingsTitle {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+#settingsDragHint {
+    font-size: 0.7rem;
+    opacity: 0.55;
+    font-weight: 400;
+}
+
 #settingsLayout {
     display: flex;
-    min-height: 280px;
+    /* min-height:0 lets this flex child shrink below its content so
+       #settingsContent can overflow-scroll instead of stretching the dialog. */
+    flex: 1;
+    min-height: 0;
 }
 
 #settingsTabs {
@@ -447,6 +486,7 @@ label.radio-label input[type="radio"] {
     padding: 0.75rem 1.25rem;
     border-top: 1px solid #ddd;
     background: #f9f9f9;
+    flex-shrink: 0;
 }
 
 .dialog-actions button {
