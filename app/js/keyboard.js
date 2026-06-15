@@ -192,6 +192,19 @@ function dismiss() {
     const f = activeField;
     hide();                       // clears activeField + hides
     if (f) { try { f.blur(); } catch { /* ignore */ } }
+    // Hide runs on pointerdown; the tap's trailing CLICK fires afterwards.
+    // Hiding frees the keyboard's reserved space, so the page reflows and
+    // another control (e.g. About Me's "Done" button) can slide under the
+    // pointer — the ghost click would then hit it (closing About Me). Swallow
+    // that one click.
+    suppressNextClick();
+}
+
+function suppressNextClick() {
+    const onClick = (e) => { e.stopPropagation(); e.preventDefault(); cleanup(); };
+    const cleanup = () => { document.removeEventListener('click', onClick, true); clearTimeout(timer); };
+    const timer = setTimeout(cleanup, 400);   // in case no click follows (e.g. keyboard nav)
+    document.addEventListener('click', onClick, true);   // capture: intercept before it reaches the moved control
 }
 
 async function handleTool(tool) {
