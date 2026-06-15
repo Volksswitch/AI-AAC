@@ -13,7 +13,7 @@ import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.2.31';
+const APP_VERSION = '0.2.32';
 
 const conversationHistory = [];
 let isListening = false;
@@ -24,6 +24,13 @@ let currentPartnerText = '';
 // Increments on every silence period / reset so that a slower, earlier
 // option-generation round-trip can't overwrite a newer one — latest wins.
 let generationToken = 0;
+// Auto-resume gate (CLAUDE.md Further Design Thoughts #4): listening is never
+// started automatically at app startup. The user must manually invoke Start
+// Listening at least once per session before auto-resume can fire; a manual
+// Stop re-arms the requirement. Set true by a manual start, false by a manual
+// stop. The automatic stop when a response is selected does NOT clear it — that
+// is exactly the boundary auto-resume is meant to continue past.
+let manualListenArmed = false;
 
 function initApp() {
     if (!stt.isSupported()) {
@@ -147,8 +154,12 @@ async function handleStart() {
 
 function toggleListening() {
     if (isListening) {
+        // Manual stop: disarm auto-resume until the user starts again.
+        manualListenArmed = false;
         stt.stopListening();
     } else {
+        // Manual start: arm auto-resume for the rest of this session.
+        manualListenArmed = true;
         startFreshListening();
     }
 }
@@ -221,7 +232,9 @@ async function handleResponseSelected(text, index) {
     conversationHistory.push({ role: 'user', text });
     storage.logUserResponse({ selectedText: text, selectedIndex: index, allOptions: lastResponseOptions });
 
-    if (storage.loadAutoRelisten()) {
+    // Auto-resume only if the user has manually started listening this session
+    // (and hasn't since manually stopped) — see manualListenArmed.
+    if (manualListenArmed && storage.loadAutoRelisten()) {
         startFreshListening();
     } else {
         ui.setStatus('Ready — tap Listen for the next exchange');
