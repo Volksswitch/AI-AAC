@@ -12,7 +12,7 @@
  * the cache is promoted only when no file exists on disk yet.
  *
  * Shape:
- *   { version, updated, migratedFromWorldview,
+ *   { version, updated,
  *     people: [ { id, name, private, attrs: { about, ... } } ],
  *     edges:  [ { from, to, type, attrs: {} } ] }
  * The user is the implicit node "me"; a person's relationship to the user is the
@@ -36,7 +36,6 @@ function defaultGraph() {
     return {
         version: 1,
         updated: new Date().toISOString(),
-        migratedFromWorldview: false,
         people: [],
         edges: []
     };
@@ -47,7 +46,6 @@ function normalize(g) {
     return {
         version: g.version ?? base.version,
         updated: g.updated ?? base.updated,
-        migratedFromWorldview: g.migratedFromWorldview ?? false,
         people: Array.isArray(g.people) ? g.people : [],
         edges: Array.isArray(g.edges) ? g.edges : []
     };
@@ -183,69 +181,6 @@ export async function resetAll() {
 
 export function count() {
     return ensureLoaded().people.length;
-}
-
-// --- migration from the old worldview A3 fields -----------------------------
-
-/**
- * One-time import of the pre-graph "People in Your Life" answers (worldview
- * module A3) into the graph. Reads by the original field keys from the passed
- * worldview module (its getField), so it works even though A3 has been removed
- * from the question registry. Idempotent: sets migratedFromWorldview and never
- * re-runs. Returns the number of people imported.
- */
-export async function migrateFromWorldview(wv) {
-    const g = ensureLoaded();
-    if (g.migratedFromWorldview) return 0;
-
-    const tupleFields = [
-        { key: 'household', rel: null },
-        { key: 'family_key', rel: null }
-    ];
-    let imported = 0;
-
-    for (const { key } of tupleFields) {
-        const val = wv.getField(key);
-        if (!Array.isArray(val)) continue;
-        for (const entry of val) {
-            const name = (entry && (entry.name || entry.value) || '').trim();
-            if (!name) continue;
-            const rel = (entry && entry.relationship || '').trim();
-            const id = newId();
-            g.people.push({ id, name, private: false, attrs: { about: '' } });
-            if (rel) g.edges.push({ from: ME, to: id, type: rel, attrs: {} });
-            imported++;
-        }
-    }
-
-    const friends = wv.getField('friends_key');
-    if (Array.isArray(friends)) {
-        for (const name of friends) {
-            const n = String(name || '').trim();
-            if (!n) continue;
-            const id = newId();
-            g.people.push({ id, name: n, private: false, attrs: { about: '' } });
-            g.edges.push({ from: ME, to: id, type: 'friend', attrs: {} });
-            imported++;
-        }
-    }
-
-    const pets = wv.getField('pets');
-    if (Array.isArray(pets)) {
-        for (const entry of pets) {
-            const name = (entry && (entry.name || entry.value) || '').trim();
-            if (!name) continue;
-            const kind = (entry && entry.kind || '').trim();
-            const id = newId();
-            g.people.push({ id, name, private: false, attrs: { about: kind } });
-            g.edges.push({ from: ME, to: id, type: 'pet', attrs: {} });
-            imported++;
-        }
-    }
-
-    g.migratedFromWorldview = true;
-    await save();
-    return imported;
 }
 
 // --- LLM profile block ------------------------------------------------------

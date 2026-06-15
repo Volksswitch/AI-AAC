@@ -95,11 +95,9 @@ export async function open() {
     // If the folder was just restored and answers were cache-only, promote
     // them to the on-disk worldview.json.
     try { await wv.syncToFolder(); } catch { /* best-effort */ }
-    // Relationship graph: load + reconcile + one-time migration of the former
-    // worldview "People" module, so the People section is ready on home.
+    // Relationship graph: load + reconcile so the People section is ready.
     try { await rel.load(); } catch { /* cache/empty graph */ }
     try { await rel.syncToFolder(); } catch { /* best-effort */ }
-    try { await rel.migrateFromWorldview(wv); } catch { /* best-effort */ }
     renderHome();
     screenEl.classList.remove('hidden');
     setBackgroundInert(true);

@@ -13,7 +13,7 @@ import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.2.27';
+const APP_VERSION = '0.2.28';
 
 const conversationHistory = [];
 let isListening = false;
@@ -138,12 +138,9 @@ async function handleStart() {
     // folder earlier), promote them to the on-disk worldview.json now.
     try { await worldview.load(); } catch { /* keep cached/empty profile */ }
     try { await worldview.syncToFolder(); } catch { /* best-effort */ }
-    // Same for the relationship graph; then migrate the old worldview "People"
-    // answers into it once (idempotent — only runs if not migrated before and
-    // the legacy A3 fields are still present in worldview.json).
+    // Same for the relationship graph.
     try { await relationships.load(); } catch { /* keep cached/empty graph */ }
     try { await relationships.syncToFolder(); } catch { /* best-effort */ }
-    try { await relationships.migrateFromWorldview(worldview); } catch { /* best-effort */ }
     document.getElementById('startOverlay').classList.add('hidden');
     document.querySelector('main').classList.remove('disabled');
 }
