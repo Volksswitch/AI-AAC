@@ -389,7 +389,23 @@ Phase-to-version mapping (update as releases are tagged):
 
 ---
 
+## Relationship Data — its own graph model, separate from the questionnaire (decided June 15 2026; NOT yet built)
+
+**Decision (Ken, June 15 2026): relationship data is a separate concern in its own file — `relationships.json` — not flat question/answer fields.** Ken's insight: relationship data has a fundamentally different structure from the worldview questionnaire. It is a **graph** — *nodes* (people) and *edges* (relationships), **both of which carry their own data** — whereas the questionnaire is flat key→answer.
+
+**Why the current model is wrong for this.** Today module **A3 "People in Your Life"** stores people as flat `repeat` lists (`household`, `family_key`, `pets` = arrays of `{name, relationship}` tuples; `friends_key` = a name list). That cannot represent: per-person attributes (how you address them, where they live, what you share, topics to avoid, how often you see them); the *same person* appearing in multiple lists with one identity; **edge** attributes (closeness, current state — "we're not talking right now" — shared history); or relationships *between third parties* ("my sister is married to my brother-in-law"). This matters specifically because the architecture's **relationship modeling** + Phase 2 **partner recognition** ask "the partner in front of me is *X* — who are they to me, what's our history?" — a node+edge lookup, not a questionnaire answer.
+
+**Agreed shape (build-ready spec; coexists with the flat questionnaire):**
+- New file in the FSA data folder: `relationships.json`, shaped `{ version, updated, people:[{id, name, attrs:{address_term, lives, likes, avoid, …}}], edges:[{from, to, type, attrs:{closeness, seen, notes, …}}] }`. `from:"me"` for the user↔person edges; person↔person edges allowed. `attrs` is a free-form bag per node and per edge (typed later as patterns emerge).
+- New model layer `relationships.js` mirroring `worldview.js` conventions: data-folder write-through + localStorage cache, **and the same "file in the folder wins" reconciliation just settled in v0.2.25** (see the cross-PC fix above) — its own `syncToFolder`. Node/edge CRUD; privacy per node (contact-info-style strict phrase-around carries over); a `buildBlock()` contribution to the LLM profile (and, with partner recognition, a *focused* lookup for the current partner).
+- The flat questionnaire **stays** for flat facts (name, place, interests, personality/values). The **A3 "People" module becomes the capture UI** that writes nodes/edges into the graph instead of `repeat` tuples; a migration reads existing A3 `repeat` answers into `people`/`edges`.
+
+**Scope guardrail (Ken's "small, not a graph DB"):** build a small typed people+edges structure with a free `attrs` bag — *not* a full graph database or a third-party-relations editor — enough now, RAG-friendly later. Build is a dedicated session (model → migration → A3 UI rework → LLM wiring), authorized separately. Not started.
+
+---
+
 ## Open Questions (remaining)
+- **Relationship data restructure (decided, not built):** see the **Relationship Data** section above — `relationships.json` graph model, A3 becomes its capture UI, migration from the current `repeat` fields. Awaiting Ken's go-ahead to build.
 - Response option UI layout: `UI-Design.docx` now specifies the four-region layout and move palette; remaining question is screen allocation between traditional AAC vocabulary and the AI-facilitated regions (composer-access region is the integration point; ultimately user-configurable per the Configuration Model)
 - Worldview questionnaire: design complete and the five open decisions resolved (June 14 2026); **Build Steps 1–4 implemented and verified — core worldview feature complete** (data model + registry, questionnaire UI, LLM integration, interim Name/About You removed). See the **Worldview Questionnaire (June 2026)** section. Remaining steps (5 expand Tier-B/C content, 6 RAG-lite) are enhancements.
 - Placeholder utterances: currently drawn randomly from a static JSON file (app/data/placeholders.json). Predictable fillers will become a joke to communication partners over time. LLM-generated contextual fillers would sound more natural and could acknowledge the topic, but must be evaluated against token cost impact. The architecture already supports user-funded API keys, so any added cost is borne by the user. *Design now specified:* the filler ladder in `Conversation-Engine-Design.docx` §6 (rung 1 static token ≤1 s, rung 2 static-or-contextual, rung 3 re-fill); contextual fillers are the rung-2 LLM option in the Configuration Model. Remaining work is implementation and the token-cost evaluation.
