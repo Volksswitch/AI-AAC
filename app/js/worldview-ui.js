@@ -152,20 +152,6 @@ function renderHome() {
 
     if (!storage.hasDataFolder()) renderFolderPrompt();
 
-    const suggested = wv.suggestedNext(5);
-    if (suggested.length) {
-        contentEl.append(el('h3', { class: 'wv-section-title', text: 'Suggested next' }));
-        const wrap = el('div', { class: 'wv-suggested' });
-        for (const f of suggested) {
-            wrap.append(el('button', {
-                class: 'wv-suggested-chip',
-                text: f.q,
-                onclick: () => openModuleForField(f.key)
-            }));
-        }
-        contentEl.append(wrap);
-    }
-
     contentEl.append(el('h3', { class: 'wv-section-title', text: 'Topics' }));
     for (const mod of wv.getModules()) {
         const pct = mod.total ? Math.round((mod.answered / mod.total) * 100) : 0;
@@ -214,18 +200,6 @@ async function onRestart() {
     await wv.resetAll();
     await rel.resetAll();
     renderHome();
-}
-
-function openModuleForField(key) {
-    const meta = wv.fieldMeta(key);
-    if (!meta) return;
-    renderModule(meta.moduleId);
-    const card = document.getElementById('wvcard-' + key);
-    if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        card.classList.add('wv-flash');
-        focusFirstField(card);   // override renderModule's first-field focus
-    }
 }
 
 // --- People (relationship graph) --------------------------------------------
