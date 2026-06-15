@@ -5,6 +5,7 @@ const NUM_OPTIONS = 3;
 let apiKey = null;
 let onUsageUpdate = null;
 let worldviewBlock = '';
+let relationshipsBlock = '';
 
 export function setApiKey(key) {
     apiKey = key;
@@ -17,12 +18,20 @@ export function setWorldviewBlock(text) {
     worldviewBlock = (text || '').trim();
 }
 
+// The compact relationship-graph text (relationships.buildBlock()). Set fresh
+// before each generation alongside the worldview block, so people edits take
+// effect immediately. Private people are already withheld by buildBlock.
+export function setRelationshipsBlock(text) {
+    relationshipsBlock = (text || '').trim();
+}
+
 // Builds the personalization + placeholder-safety block appended to the
 // response-generation system prompt. Even with no profile set, the
 // no-brackets instruction prevents the model from emitting "[Name]" blanks.
 function buildProfileBlock() {
     const sections = [];
     if (worldviewBlock) sections.push(`\n\n${worldviewBlock}`);
+    if (relationshipsBlock) sections.push(`\n\n${relationshipsBlock}`);
     sections.push(`\n\nNever output placeholder text in square brackets such as [Name], [your name], or [city]. If you do not know a personal detail, phrase the response so it is not needed.`);
     return sections.join('');
 }

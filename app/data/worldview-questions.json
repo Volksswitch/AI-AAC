@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "note": "Static worldview question registry. The UI renders from this; the prompt-builder reads `fills`/`defaultPrivacy`. Authored from Worldview-Questionnaire-Draft1.docx. Build Step 1 scope: full Tier-A (A1-A5) + Tier-C starter (C1 favorites, C2 passions). Tier-B and the rest of Tier-C arrive in Build Step 5.",
+    "note": "Static worldview question registry for FLAT facts. The UI renders from this; the prompt-builder reads `fills`/`defaultPrivacy`. Authored from Worldview-Questionnaire-Draft1.docx. Build Step 1 scope: full Tier-A + Tier-C starter (C1 favorites, C2 passions). PEOPLE/RELATIONSHIPS are NOT here — they are a graph (relationships.js / relationships.json), edited via the People section of About Me; the former module A3 was migrated into that graph (June 15 2026). Tier-B and the rest of Tier-C arrive in Build Step 5.",
     "answerType": "text | number | choice | multi | repeat. The UI always adds 'In my own words' (free text) and 'Prefer not to say' (decline); they are never listed in options.",
     "privacy": "defaultPrivacy: shareable | private. Private fields are never volunteered in conversation (strict phrase-around for this build). A per-field 'may share if I pick it' toggle is a later build."
   },
@@ -16,7 +16,8 @@
         { "key": "nickname", "q": "Any nickname you like to be called?", "type": "text", "options": [], "fills": ["nickname"], "sensitive": false, "defaultPrivacy": "shareable" },
         { "key": "pronouns", "q": "What pronouns do you use?", "type": "choice", "options": ["she/her", "he/him", "they/them"], "fills": ["pronouns"], "sensitive": false, "defaultPrivacy": "shareable" },
         { "key": "age_birthyear", "q": "How old are you, or what year were you born?", "type": "number", "options": [], "fills": ["age", "birth year"], "sensitive": true, "defaultPrivacy": "shareable" },
-        { "key": "languages", "q": "What languages do you speak or understand?", "type": "multi", "options": [], "fills": ["language"], "sensitive": false, "defaultPrivacy": "shareable" }
+        { "key": "languages", "q": "What languages do you speak or understand?", "type": "multi", "options": [], "fills": ["language"], "sensitive": false, "defaultPrivacy": "shareable" },
+        { "key": "address_terms", "q": "What do you call the important people in your life? (Mom / Mum / by name…)", "type": "multi", "options": [], "fills": ["forms of address"], "sensitive": false, "defaultPrivacy": "shareable" }
       ]
     },
     {
@@ -28,18 +29,6 @@
         { "key": "home_region", "q": "What state or province, and country?", "type": "text", "options": [], "fills": ["state", "province", "country"], "sensitive": false, "defaultPrivacy": "shareable" },
         { "key": "hometown", "q": "Where did you grow up?", "type": "text", "options": [], "fills": ["hometown"], "sensitive": false, "defaultPrivacy": "shareable" },
         { "key": "living_situation", "q": "Who do you live with — family, on your own, a group home, a dorm?", "type": "choice", "options": ["With family", "On my own", "A group home", "A dorm"], "fills": ["living situation"], "sensitive": true, "defaultPrivacy": "shareable" }
-      ]
-    },
-    {
-      "id": "A3",
-      "tier": "core",
-      "title": "People in Your Life",
-      "fields": [
-        { "key": "household", "q": "Who are the people you live with? (name and relationship)", "type": "repeat", "options": [], "fields": ["name", "relationship"], "fills": ["family member", "mom's name", "dad's name"], "sensitive": false, "defaultPrivacy": "shareable" },
-        { "key": "family_key", "q": "Tell me about close family — names and how they're related.", "type": "repeat", "options": [], "fields": ["name", "relationship"], "fills": ["sister's name", "brother's name", "son's name", "daughter's name"], "sensitive": false, "defaultPrivacy": "shareable" },
-        { "key": "friends_key", "q": "Who are your closest friends?", "type": "multi", "options": [], "fills": ["friend's name"], "sensitive": false, "defaultPrivacy": "shareable" },
-        { "key": "pets", "q": "Any pets? Their names and what kind.", "type": "repeat", "options": [], "fields": ["name", "kind"], "fills": ["pet's name", "pet"], "sensitive": false, "defaultPrivacy": "shareable" },
-        { "key": "address_terms", "q": "What do you call the important people in your life? (Mom / Mum / by name…)", "type": "multi", "options": [], "fills": ["forms of address"], "sensitive": false, "defaultPrivacy": "shareable" }
       ]
     },
     {

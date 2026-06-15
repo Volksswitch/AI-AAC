@@ -5,6 +5,7 @@ import * as ui from './ui.js';
 import * as storage from './storage.js';
 import * as placeholders from './placeholders.js';
 import * as worldview from './worldview.js';
+import * as relationships from './relationships.js';
 import * as worldviewUI from './worldview-ui.js';
 import * as keyboard from './keyboard.js';
 import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
@@ -12,7 +13,7 @@ import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.2.26';
+const APP_VERSION = '0.2.27';
 
 const conversationHistory = [];
 let isListening = false;
@@ -79,6 +80,10 @@ function initApp() {
     // cache; handleStart() reloads from the folder once it's granted.
     worldview.loadRegistry().catch(() => { /* registry optional at startup */ });
     worldview.load().catch(() => { /* falls back to empty profile */ });
+    // Relationship graph (people/edges) — its own model + file. Loaded here from
+    // the cache; handleStart() reloads from the folder and runs the one-time
+    // migration of the former worldview "People" module once both are loaded.
+    relationships.load().catch(() => { /* falls back to empty graph */ });
 
     const savedKey = storage.loadApiKey();
     if (savedKey) {
@@ -133,6 +138,12 @@ async function handleStart() {
     // folder earlier), promote them to the on-disk worldview.json now.
     try { await worldview.load(); } catch { /* keep cached/empty profile */ }
     try { await worldview.syncToFolder(); } catch { /* best-effort */ }
+    // Same for the relationship graph; then migrate the old worldview "People"
+    // answers into it once (idempotent — only runs if not migrated before and
+    // the legacy A3 fields are still present in worldview.json).
+    try { await relationships.load(); } catch { /* keep cached/empty graph */ }
+    try { await relationships.syncToFolder(); } catch { /* best-effort */ }
+    try { await relationships.migrateFromWorldview(worldview); } catch { /* best-effort */ }
     document.getElementById('startOverlay').classList.add('hidden');
     document.querySelector('main').classList.remove('disabled');
 }
@@ -167,6 +178,7 @@ async function generateOptions(partnerText) {
     // Inject the current worldview profile so the assistant speaks AS the user.
     // Rebuilt each turn so questionnaire edits take effect immediately.
     llm.setWorldviewBlock(worldview.buildBlock());
+    llm.setRelationshipsBlock(relationships.buildBlock());
 
     try {
         const { options, missingFacts } = await llm.generateResponses(history);

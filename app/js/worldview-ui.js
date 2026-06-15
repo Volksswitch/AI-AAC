@@ -16,6 +16,7 @@
  */
 
 import * as wv from './worldview.js';
+import * as rel from './relationships.js';
 import { speak } from './tts.js';
 import * as storage from './storage.js';
 
@@ -94,6 +95,11 @@ export async function open() {
     // If the folder was just restored and answers were cache-only, promote
     // them to the on-disk worldview.json.
     try { await wv.syncToFolder(); } catch { /* best-effort */ }
+    // Relationship graph: load + reconcile + one-time migration of the former
+    // worldview "People" module, so the People section is ready on home.
+    try { await rel.load(); } catch { /* cache/empty graph */ }
+    try { await rel.syncToFolder(); } catch { /* best-effort */ }
+    try { await rel.migrateFromWorldview(wv); } catch { /* best-effort */ }
     renderHome();
     screenEl.classList.remove('hidden');
     setBackgroundInert(true);
@@ -178,14 +184,30 @@ function renderHome() {
         ]));
     }
 
+    // People & relationships — a graph, not Q&A, so it has its own editor
+    // (relationships.js) rather than a questionnaire module.
+    contentEl.append(el('h3', { class: 'wv-section-title', text: 'People & relationships' }));
+    const n = rel.count();
+    const peopleMeta = n
+        ? `${n} ${n === 1 ? 'person' : 'people'} added`
+        : 'Add family, friends, and pets';
+    contentEl.append(el('button', { class: 'wv-module-row', onclick: renderPeople }, [
+        el('div', { class: 'wv-module-main' }, [
+            el('div', { class: 'wv-module-title', text: 'People in Your Life' }),
+            el('div', { class: 'wv-module-meta', text: peopleMeta })
+        ]),
+        el('div', { class: 'wv-chevron', text: '›' })
+    ]));
+
     contentEl.append(el('div', { class: 'wv-home-footer' }, [
         el('button', { class: 'wv-btn wv-btn-danger', text: 'Restart — clear all answers', onclick: onRestart })
     ]));
 }
 
 async function onRestart() {
-    if (!confirm('Clear every answer and start over? This cannot be undone.')) return;
+    if (!confirm('Clear every answer, including people, and start over? This cannot be undone.')) return;
     await wv.resetAll();
+    await rel.resetAll();
     renderHome();
 }
 
@@ -199,6 +221,101 @@ function openModuleForField(key) {
         card.classList.add('wv-flash');
         focusFirstField(card);   // override renderModule's first-field focus
     }
+}
+
+// --- People (relationship graph) --------------------------------------------
+
+// People are nodes + edges (relationships.js), not questionnaire answers, so
+// they get a dedicated editor. The UI edits me->person relationships; the data
+// model also supports person<->person edges for later.
+function renderPeople(editingId = null) {
+    titleEl.textContent = 'People in Your Life';
+    contentEl.scrollTop = 0;
+    contentEl.innerHTML = '';
+
+    contentEl.append(el('button', { class: 'wv-back', text: '‹ All topics', onclick: renderHome }));
+    contentEl.append(el('p', { class: 'wv-intro', text:
+        'Add the people (and pets) who matter to you — name, how they relate to you, '
+        + 'and anything worth knowing. Mark someone private and the assistant will never name them.' }));
+
+    const people = rel.listPeople();
+    for (const p of people) {
+        contentEl.append(editingId === p.id ? buildPersonForm(p) : buildPersonCard(p));
+    }
+
+    contentEl.append(el('h3', { class: 'wv-section-title', text: 'Add someone' }));
+    contentEl.append(buildPersonForm(null));
+
+    contentEl.append(el('div', { class: 'wv-home-footer' }, [
+        el('button', { class: 'wv-btn wv-btn-primary', text: 'Done', onclick: renderHome })
+    ]));
+}
+
+function buildPersonCard(p) {
+    const card = el('div', { class: 'wv-card', id: 'wvperson-' + p.id });
+    const titleParts = [p.name || '(unnamed)'];
+    if (p.relationship) titleParts.push(`(${p.relationship})`);
+
+    const head = el('div', { class: 'wv-card-head' }, [
+        el('div', { class: 'wv-question', text: titleParts.join(' ') })
+    ]);
+    if (p.private) head.append(el('span', { class: 'wv-badge wv-badge-declined', text: 'Private' }));
+    card.append(head);
+
+    if (p.about) card.append(el('p', { class: 'wv-person-about', text: p.about }));
+
+    card.append(el('div', { class: 'wv-actions' }, [
+        el('button', { class: 'wv-btn wv-btn-link', text: 'Edit', onclick: () => renderPeople(p.id) }),
+        el('button', { class: 'wv-btn wv-btn-link', text: 'Remove',
+            onclick: async () => {
+                if (!confirm(`Remove ${p.name || 'this person'}?`)) return;
+                await rel.removePerson(p.id);
+                renderPeople();
+            } })
+    ]));
+    return card;
+}
+
+// Edit form for an existing person, or the blank "add someone" form when
+// `existing` is null.
+function buildPersonForm(existing) {
+    const card = el('div', { class: 'wv-card wv-person-form' });
+
+    const nameIn = el('input', { type: 'text', class: 'wv-text', placeholder: 'Name',
+        value: existing ? existing.name : '' });
+    const relIn = el('input', { type: 'text', class: 'wv-text', placeholder: 'Relationship (mother, friend, dog…)',
+        value: existing ? existing.relationship : '' });
+    const aboutIn = el('input', { type: 'text', class: 'wv-text', placeholder: 'Anything worth knowing (optional)',
+        value: existing ? existing.about : '' });
+
+    const privId = 'wvpriv-' + (existing ? existing.id : 'new');
+    const privCheck = el('input', { type: 'checkbox', id: privId });
+    if (existing && existing.private) privCheck.checked = true;
+    const privRow = el('label', { class: 'wv-person-private', for: privId }, [
+        privCheck, el('span', { text: 'Private — never name this person' })
+    ]);
+
+    card.append(el('div', { class: 'wv-person-fields' }, [nameIn, relIn, aboutIn, privRow]));
+
+    const save = el('button', { class: 'wv-btn wv-btn-primary', text: existing ? 'Save' : 'Add person',
+        onclick: async () => {
+            const name = nameIn.value.trim();
+            const relationship = relIn.value.trim();
+            if (!name && !relationship) return;   // nothing to save
+            if (existing) {
+                await rel.updatePerson(existing.id, { name, relationship, about: aboutIn.value.trim(), isPrivate: privCheck.checked });
+            } else {
+                await rel.addPerson({ name, relationship, about: aboutIn.value.trim(), isPrivate: privCheck.checked });
+            }
+            renderPeople();
+        } });
+
+    const actions = el('div', { class: 'wv-actions' }, [save]);
+    if (existing) {
+        actions.append(el('button', { class: 'wv-btn wv-btn-link', text: 'Cancel', onclick: () => renderPeople() }));
+    }
+    card.append(actions);
+    return card;
 }
 
 // --- Module (a chunk of cards) ----------------------------------------------

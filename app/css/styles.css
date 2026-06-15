@@ -691,6 +691,33 @@ label.radio-label input[type="radio"] {
     margin: 1.25rem 0 0.5rem;
 }
 
+.wv-person-about {
+    color: #555;
+    line-height: 1.4;
+    margin: 0.25rem 0 0.5rem;
+}
+
+.wv-person-form .wv-person-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.wv-person-private {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #555;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.wv-person-private input {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
 .wv-folder-prompt {
     background: #e3f2fd;
     border: 1px solid #90caf9;
