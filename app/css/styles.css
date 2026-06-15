@@ -691,6 +691,40 @@ label.radio-label input[type="radio"] {
     margin: 1.25rem 0 0.5rem;
 }
 
+.wv-folder-prompt {
+    background: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.wv-folder-prompt-text {
+    color: #0d47a1;
+    line-height: 1.5;
+    margin: 0 0 0.75rem;
+}
+
+.wv-folder-prompt-btn {
+    background: #1976d2;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.7rem 1.1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.wv-folder-prompt-btn:hover {
+    background: #1565c0;
+}
+
+.wv-folder-prompt-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
 .wv-suggested {
     display: flex;
     flex-direction: column;

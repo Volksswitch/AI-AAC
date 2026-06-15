@@ -106,6 +106,37 @@ export function close() {
 
 // --- Home -------------------------------------------------------------------
 
+// Shown on the About Me home when no data folder is assigned. Without a folder,
+// answers live only in this browser's cache — they don't travel with the user
+// and are lost if browser data is cleared. The button is a fresh user gesture
+// (required by the File System Access picker), so we prompt here rather than
+// auto-popping the picker from open() where the gesture would be consumed by
+// the awaits before render.
+function renderFolderPrompt() {
+    const card = el('div', { class: 'wv-folder-prompt' }, [
+        el('p', { class: 'wv-folder-prompt-text', text:
+            'Your answers are being saved only in this browser. Choose a data folder '
+            + 'to save them to a file you can back up and move between devices.' }),
+        el('button', {
+            class: 'wv-folder-prompt-btn',
+            text: 'Choose data folder',
+            onclick: async (e) => {
+                e.currentTarget.disabled = true;
+                try {
+                    await storage.pickDataFolder();
+                    // File-in-folder wins (v0.2.25): adopt an existing
+                    // worldview.json, or promote cache-only answers to a new one.
+                    try { await wv.syncToFolder(); } catch { /* best-effort */ }
+                    renderHome();   // banner clears; progress reflects adopted data
+                } catch (err) {
+                    e.currentTarget.disabled = false;   // AbortError = user cancelled
+                }
+            }
+        })
+    ]);
+    contentEl.append(card);
+}
+
 function renderHome() {
     titleEl.textContent = 'About Me';
     contentEl.scrollTop = 0;
@@ -113,6 +144,8 @@ function renderHome() {
 
     contentEl.append(el('p', { class: 'wv-intro', text:
         'Answer as many or as few as you like, whenever you like. Nothing here is required, and you can change or remove any answer later.' }));
+
+    if (!storage.hasDataFolder()) renderFolderPrompt();
 
     const suggested = wv.suggestedNext(5);
     if (suggested.length) {
