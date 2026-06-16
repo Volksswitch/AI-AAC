@@ -35,10 +35,30 @@
             </div>
         </section>
 
+        <section id="engineSection" aria-label="Conversation engine state">
+            <h2>Engine state <span class="engine-note">(diagnostic — temporary)</span></h2>
+            <div id="enginePanel" class="panel">
+                <div class="engine-row"><span class="engine-label">Mode</span><span id="engineMode" class="engine-val">LISTENING</span></div>
+                <div class="engine-row"><span class="engine-label">Phase</span><span id="enginePhase" class="engine-val">BODY</span></div>
+                <div class="engine-row"><span class="engine-label">Partner action</span><span id="engineAction" class="engine-val">—</span></div>
+                <div class="engine-row"><span class="engine-label">Turn status</span><span id="engineTurnStatus" class="engine-val">—</span></div>
+                <div class="engine-row"><span class="engine-label">Repair initiator</span><span id="engineRepair" class="engine-val">—</span></div>
+                <div class="engine-row"><span class="engine-label">Sequence stack</span><span id="engineStack" class="engine-val">(empty)</span></div>
+                <div class="engine-row"><span class="engine-label">Last user said</span><span id="engineLastUser" class="engine-val">—</span></div>
+            </div>
+        </section>
+
         <section id="responsesSection" aria-label="Response options">
             <h2>Your response:</h2>
             <div id="responseOptions" class="panel">
                 <p class="placeholder">Response options will appear here</p>
+            </div>
+            <div id="overrideControls" aria-label="Persistent override controls">
+                <button id="initiateBtn" type="button">Start conversation</button>
+                <button id="sayAgainBtn" type="button">Say again</button>
+                <button id="holdOnBtn" type="button">Hold on</button>
+                <button id="pardonBtn" type="button">Pardon?</button>
+                <button id="windDownBtn" type="button">Wind down</button>
             </div>
             <div id="persistentControls">
                 <button id="repeatBtn" type="button">Please repeat what you said.</button>

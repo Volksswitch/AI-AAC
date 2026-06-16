@@ -142,6 +142,74 @@ h2 {
     outline: none;
 }
 
+/* Move palette buttons carry a slot badge + the move text (degenerate
+   renderer — no triple coding / latency dots yet). */
+#responseOptions .option-btn .move-slot {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #fff;
+    background: #6c7a89;
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    margin-right: 0.6rem;
+    vertical-align: middle;
+}
+#responseOptions .option-btn .move-text {
+    vertical-align: middle;
+}
+
+/* Diagnostic engine-state panel — temporary, replaced by the real Presentation
+   Layer later. Deliberately plain. */
+#engineSection .engine-note {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: #95a5a6;
+}
+#enginePanel {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.9rem;
+    background: #f4f6f8;
+}
+.engine-row {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.15rem 0;
+}
+.engine-label {
+    flex: 0 0 9rem;
+    color: #7f8c8d;
+}
+.engine-val {
+    font-weight: 600;
+    color: #2c3e50;
+    word-break: break-word;
+}
+
+/* Persistent override controls (Say again / Hold on / Pardon? / Wind down). */
+#overrideControls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+#overrideControls button {
+    flex: 1 1 auto;
+    background: #ecf0f1;
+    border: 2px solid #bdc3c7;
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+#overrideControls button:hover,
+#overrideControls button:focus {
+    border-color: #2c3e50;
+    outline: none;
+}
+
 #persistentControls {
     margin-top: 0.75rem;
 }

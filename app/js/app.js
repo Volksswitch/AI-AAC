@@ -4,6 +4,7 @@ import * as llm from './llm.js';
 import * as ui from './ui.js';
 import * as storage from './storage.js';
 import * as placeholders from './placeholders.js';
+import * as engine from './engine.js';
 import * as worldview from './worldview.js';
 import * as relationships from './relationships.js';
 import * as worldviewUI from './worldview-ui.js';
@@ -13,11 +14,11 @@ import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.2.32';
+const APP_VERSION = '0.3.0';
 
 const conversationHistory = [];
 let isListening = false;
-let lastResponseOptions = [];
+let lastPalette = [];
 // Raw, combined speech-to-text for the partner's current (uncommitted) turn.
 // Grows across silence periods until the user picks a response.
 let currentPartnerText = '';
@@ -54,6 +55,14 @@ function initApp() {
     ui.onClearComposerClick(() => ui.clearComposer());
     ui.onSettingsClick(openSettings);
     ui.onAboutMeClick(worldviewUI.open);
+    // Persistent override controls (Conversation-Engine-Design.docx §5.1) — the
+    // user's escape hatch when the engine's mode inference is wrong.
+    ui.onInitiateClick(handleInitiate);
+    ui.onSayAgainClick(handleSayAgain);
+    ui.onHoldOnClick(handleHoldOn);
+    ui.onPardonClick(handlePardon);
+    ui.onWindDownClick(handleWindDown);
+    ui.showEngineState(engine.getSnapshot());
     worldviewUI.init();
     keyboard.init();
     keyboard.setMode(storage.loadKeyboardMode());
@@ -110,9 +119,12 @@ function handleSpeechResult(liveText) {
 // Fired each time the partner pauses for the configured silence period.
 // Recording continues; we just take everything collected so far and refresh
 // the response options from it. A later (more complete) period supersedes this.
+// Per the no-confirmation-gate decision (June 15 2026) generation fires here on
+// silence — there is no confirm-the-transcript step.
 async function handleSilencePeriod(text) {
     currentPartnerText = text;
     ui.showTranscript(text, false);
+    engine.partnerSpeaking(text);
     placeholders.start();
     await generateOptions(text);
 }
@@ -148,6 +160,9 @@ async function handleStart() {
     // Same for the relationship graph.
     try { await relationships.load(); } catch { /* keep cached/empty graph */ }
     try { await relationships.syncToFolder(); } catch { /* best-effort */ }
+    // Fresh conversation state for this session.
+    engine.reset();
+    ui.showEngineState(engine.getSnapshot());
     document.getElementById('startOverlay').classList.add('hidden');
     document.querySelector('main').classList.remove('disabled');
 }
@@ -189,15 +204,32 @@ async function generateOptions(partnerText) {
     llm.setRelationshipsBlock(relationships.buildBlock());
 
     try {
-        const { options, missingFacts } = await llm.generateResponses(history);
+        const result = await llm.generateResponses(history, engine.buildRequestContext());
         if (token !== generationToken) return; // a newer silence period superseded this
-        lastResponseOptions = options;
-        ui.showResponseOptions(options, handleResponseSelected);
-        ui.setStatus('Select a response');
+
+        // Engine ingests the classification and updates mode / stack / palette.
+        const snap = engine.ingestClassification(result, partnerText);
+        ui.showEngineState(snap);
+        lastPalette = snap.palette;
+
+        if (snap.lastClassification && snap.lastClassification.turn_status !== 'COMPLETE'
+            && !snap.lastClassification.is_repair_initiator) {
+            // Mid-utterance pause (INCOMPLETE / CONTINUING) — don't respond. Stop
+            // holding the floor and keep listening for the rest of the turn.
+            placeholders.stop();
+            ui.clearResponseOptions();
+            ui.setStatus('Partner still speaking…');
+        } else {
+            ui.showMoves(snap.palette, handleMoveSelected);
+            ui.setStatus(snap.mode === engine.MODE.REPAIR_OF_SELF
+                ? 'Partner didn\'t catch that — choose how to repeat'
+                : 'Select a response');
+        }
+
         // Record facts the model lacked — drives the questionnaire's "suggested
         // next." Open gaps only; recordGaps drops answered/declined keys.
-        if (missingFacts && missingFacts.length) {
-            worldview.recordGaps(missingFacts, partnerText).catch(() => { /* non-fatal */ });
+        if (result.missingFacts && result.missingFacts.length) {
+            worldview.recordGaps(result.missingFacts, partnerText).catch(() => { /* non-fatal */ });
         }
     } catch (err) {
         if (token !== generationToken) return;
@@ -205,7 +237,11 @@ async function generateOptions(partnerText) {
     }
 }
 
-async function handleResponseSelected(text, index) {
+// A move from the palette was selected. Repair-of-self operations act on the
+// user's own last utterance; everything else is a normal SPP / opener / closer.
+async function handleMoveSelected(move, index) {
+    if (move.op) return handleRepairOfSelf(move);
+
     placeholders.stop();
     generationToken++; // invalidate any in-flight generation
     stt.stopListening();
@@ -214,12 +250,61 @@ async function handleResponseSelected(text, index) {
     currentPartnerText = '';
 
     ui.setStatus('Speaking...');
+    await tts.speak(move.text);
+
+    engine.selectMove(move);
+    ui.showEngineState(engine.getSnapshot());
+
+    await commitExchange(raw, move.text, index);
+    resumeOrIdle();
+}
+
+// REPAIR-OF-SELF (design §7.2): re-speak verbatim (instant, no LLM), or
+// rephrase / expand the user's last utterance via a round-trip.
+async function handleRepairOfSelf(move) {
+    placeholders.stop();
+    generationToken++;
+    stt.stopListening();
+
+    let text = engine.getLastUserUtterance();
+    if (!text) {
+        ui.setStatus('Nothing to repeat yet');
+        return;
+    }
+    if (move.op !== 'respeak') {
+        ui.setStatus(move.op === 'expand' ? 'Expanding…' : 'Rephrasing…');
+        try {
+            text = await llm.repairSelf(engine.getLastUserUtterance(), move.op, conversationHistory);
+        } catch (err) {
+            ui.setStatus(`Error: ${err.message}`);
+            return;
+        }
+    }
+
+    const raw = currentPartnerText; // the partner's repair-initiator turn ("What?")
+    currentPartnerText = '';
+
+    ui.setStatus('Speaking...');
     await tts.speak(text);
 
-    // The exchange is settled — now clean the combined transcript once and
-    // commit the partner turn (cleaned text feeds context for future turns),
-    // followed by the user's response. Cleaning happens after speaking so it
-    // never delays the user's selected words.
+    engine.completeRepairOfSelf(text);
+    ui.showEngineState(engine.getSnapshot());
+
+    // Log the partner's repair initiation and the user's restated turn.
+    if (raw) {
+        conversationHistory.push({ role: 'partner', text: raw });
+        storage.logPartnerSpeech({ rawTranscript: raw, cleanedTranscript: raw });
+    }
+    conversationHistory.push({ role: 'user', text });
+    storage.logUserResponse({ selectedText: text, selectedIndex: -1, allOptions: [] });
+    resumeOrIdle();
+}
+
+// Clean the combined partner transcript once, then commit the partner turn
+// (cleaned text feeds context for future turns) followed by the user's
+// response. Cleaning happens after speaking so it never delays the user's
+// words. `raw` may be empty (openers / closers have no captured partner turn).
+async function commitExchange(raw, userText, index) {
     if (raw) {
         let cleaned = raw;
         try {
@@ -229,16 +314,71 @@ async function handleResponseSelected(text, index) {
         ui.showTranscript(cleaned, true);
         storage.logPartnerSpeech({ rawTranscript: raw, cleanedTranscript: cleaned });
     }
-    conversationHistory.push({ role: 'user', text });
-    storage.logUserResponse({ selectedText: text, selectedIndex: index, allOptions: lastResponseOptions });
+    conversationHistory.push({ role: 'user', text: userText });
+    storage.logUserResponse({
+        selectedText: userText,
+        selectedIndex: index,
+        allOptions: lastPalette.map(m => m.text).filter(Boolean),
+    });
+}
 
-    // Auto-resume only if the user has manually started listening this session
-    // (and hasn't since manually stopped) — see manualListenArmed.
+// Auto-resume only if the user has manually started listening this session (and
+// hasn't since manually stopped) — see manualListenArmed.
+function resumeOrIdle() {
     if (manualListenArmed && storage.loadAutoRelisten()) {
         startFreshListening();
     } else {
         ui.setStatus('Ready — tap Listen for the next exchange');
     }
+}
+
+// --- Persistent override controls (design §5.1) ---
+
+// Start conversation — INITIATING mode; surface pre-sequences / openers.
+function handleInitiate() {
+    const snap = engine.initiate();
+    ui.showEngineState(snap);
+    ui.showMoves(snap.palette, handleMoveSelected);
+    ui.setStatus('Pick an opener');
+}
+
+// Say again — re-speak the user's last utterance verbatim. Instant, no LLM.
+async function handleSayAgain() {
+    const text = engine.getLastUserUtterance();
+    if (!text) { ui.setStatus('Nothing to repeat yet'); return; }
+    placeholders.stop();
+    ui.setStatus('Speaking...');
+    await tts.speak(text);
+    ui.setStatus(isListening ? 'Listening...' : 'Ready');
+}
+
+// Hold on — manually fire a floor-holding filler. Instant.
+async function handleHoldOn() {
+    placeholders.stop();
+    ui.setStatus('Speaking...');
+    await tts.speak('Hold on, let me think.');
+    ui.setStatus(isListening ? 'Listening...' : 'Ready');
+}
+
+// Pardon? — manually initiate repair on the partner's turn. Pushes a nested
+// repair sequence; the partner's re-speak resolves it (engine.ingest).
+async function handlePardon() {
+    placeholders.stop();
+    const snap = engine.pardon();
+    ui.showEngineState(snap);
+    ui.clearResponseOptions();
+    ui.setStatus('Speaking...');
+    await tts.speak('Sorry, what was that?');
+    ui.setStatus(isListening ? 'Listening...' : 'Ready');
+}
+
+// Wind down — enter PRE-CLOSING and swap to the closing palette.
+function handleWindDown() {
+    placeholders.stop();
+    const snap = engine.windDown();
+    ui.showEngineState(snap);
+    ui.showMoves(snap.palette, handleMoveSelected);
+    ui.setStatus('Pick a closing');
 }
 
 // "In your own words" composer — speak free-composed text in the user's
