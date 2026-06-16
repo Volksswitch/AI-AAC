@@ -23,6 +23,19 @@ export const MODE = {
     PRE_CLOSING_CLOSING: 'PRE_CLOSING_CLOSING',
 };
 
+// --- Floor (who currently holds the turn). A separate dimension from `mode`:
+// `mode` is what the SYSTEM is doing, `floor` is whose turn it is. LISTENING is
+// the system's receptive posture, which spans both floor=PARTNER (partner
+// mid-utterance) and floor=OPEN (at rest, nobody producing a turn) — so floor
+// can't be read off the mode. The user can always seize the floor via the
+// persistent overrides, so PARTNER is a default expectation, not an exclusive
+// lock. See the mode-vs-floor note in CLAUDE.md. ---
+export const FLOOR = {
+    OPEN: 'open',       // at rest / between turns — floor up for grabs
+    PARTNER: 'partner', // partner is producing (or owed the next) turn
+    SELF: 'self',       // it is the user's turn to act
+};
+
 // --- Move slots (design §4). Ordinal position is stable across modes so the
 // user gets motor automaticity (preferred always first, repair always last). ---
 export const SLOT = {
@@ -67,6 +80,7 @@ const state = {
     lastUserUtterance: '',        // for repair of our own turn
     lastPartnerUtterance: { text: '', confidence: null },
     mode: MODE.LISTENING,
+    floor: FLOOR.OPEN,            // whose turn it is — see FLOOR
     lastClassification: null,     // {partner_action, turn_status, is_repair_initiator} — inspectable
     palette: [],                  // current move descriptors
 };
@@ -78,6 +92,7 @@ export function reset() {
     state.lastUserUtterance = '';
     state.lastPartnerUtterance = { text: '', confidence: null };
     state.mode = MODE.LISTENING;
+    state.floor = FLOOR.OPEN;
     state.lastClassification = null;
     state.palette = [];
 }
@@ -86,6 +101,7 @@ export function reset() {
 export function getSnapshot() {
     return {
         mode: state.mode,
+        floor: state.floor,
         phase: state.phase,
         register: state.register,
         sequenceStack: state.sequenceStack.map(s => ({ ...s })),
@@ -114,6 +130,7 @@ export function buildRequestContext() {
 // Record that the partner is mid-capture (used at each silence checkpoint).
 export function partnerSpeaking(text, confidence = null) {
     state.lastPartnerUtterance = { text, confidence };
+    state.floor = FLOOR.PARTNER;
     if (state.mode === MODE.LISTENING) state.palette = [];
 }
 
@@ -135,14 +152,16 @@ export function ingestClassification(result, partnerText) {
     // Switch to REPAIR-OF-SELF and offer operations on lastUserUtterance (§7.2).
     if (state.lastClassification.is_repair_initiator) {
         state.mode = MODE.REPAIR_OF_SELF;
+        state.floor = FLOOR.SELF; // it's the user's turn to repeat their own utterance
         state.palette = repairSelfPalette();
         return getSnapshot();
     }
 
     // Mid-utterance pause — responding here is the high-stakes false-TRP error
-    // (§8). Keep listening; show no palette.
+    // (§8). Keep listening; show no palette. The partner still holds the floor.
     if (state.lastClassification.turn_status !== 'COMPLETE') {
         state.mode = MODE.LISTENING;
+        state.floor = FLOOR.PARTNER;
         state.palette = [];
         return getSnapshot();
     }
@@ -163,6 +182,8 @@ export function ingestClassification(result, partnerText) {
         sttConfidence: state.lastPartnerUtterance.confidence,
     });
 
+    // Partner produced a complete turn — the floor is now the user's to respond.
+    state.floor = FLOOR.SELF;
     if (state.lastClassification.partner_action === 'CLOSING') {
         state.phase = 'PRE_CLOSING';
         state.mode = MODE.PRE_CLOSING_CLOSING;
@@ -230,6 +251,9 @@ export function selectMove(move) {
         }
     }
     if (state.mode !== MODE.PRE_CLOSING_CLOSING) state.mode = MODE.LISTENING;
+    // The user produced their turn — the floor is open again (the partner may
+    // take it, or it lapses until someone does).
+    state.floor = FLOOR.OPEN;
     state.palette = [];
     return getSnapshot();
 }
@@ -240,6 +264,7 @@ export function selectMove(move) {
 export function completeRepairOfSelf(spokenText) {
     if (spokenText) state.lastUserUtterance = spokenText;
     state.mode = MODE.LISTENING;
+    state.floor = FLOOR.OPEN;
     state.palette = [];
     return getSnapshot();
 }
@@ -254,6 +279,8 @@ export function pardon() {
         sttConfidence: null,
     });
     state.mode = MODE.LISTENING;
+    // We've handed back to the partner to re-do their turn.
+    state.floor = FLOOR.PARTNER;
     state.palette = [];
     return getSnapshot();
 }
@@ -262,6 +289,7 @@ export function pardon() {
 export function windDown() {
     state.phase = 'PRE_CLOSING';
     state.mode = MODE.PRE_CLOSING_CLOSING;
+    state.floor = FLOOR.SELF; // the user is taking the floor to wind things down
     state.palette = closingPalette();
     return getSnapshot();
 }
@@ -270,6 +298,7 @@ export function windDown() {
 export function initiate() {
     state.phase = 'OPENING';
     state.mode = MODE.INITIATING;
+    state.floor = FLOOR.SELF; // the user is taking the floor to open
     state.palette = openerPalette();
     return getSnapshot();
 }

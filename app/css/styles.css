@@ -192,6 +192,15 @@ h2 {
 .engine-val.capture-off {
     color: #95a5a6;
 }
+.engine-val.floor-self {
+    color: #2980b9;
+}
+.engine-val.floor-partner {
+    color: #d35400;
+}
+.engine-val.floor-open {
+    color: #95a5a6;
+}
 
 /* Persistent override controls (Say again / Hold on / Pardon? / Wind down). */
 #overrideControls {

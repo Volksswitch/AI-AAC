@@ -44,6 +44,7 @@ export function clearResponseOptions() {
 
 const engineEls = {
     mode: document.getElementById('engineMode'),
+    floor: document.getElementById('engineFloor'),
     phase: document.getElementById('enginePhase'),
     action: document.getElementById('engineAction'),
     turnStatus: document.getElementById('engineTurnStatus'),
@@ -56,6 +57,11 @@ export function showEngineState(snap) {
     if (!snap) return;
     engineEls.mode.textContent = snap.mode;
     engineEls.phase.textContent = snap.phase;
+    if (engineEls.floor) {
+        const floor = snap.floor || 'open';
+        engineEls.floor.textContent = floor;
+        engineEls.floor.className = `engine-val floor-${floor}`;
+    }
     const c = snap.lastClassification;
     engineEls.action.textContent = c ? c.partner_action : '—';
     engineEls.turnStatus.textContent = c ? c.turn_status : '—';
