@@ -373,6 +373,11 @@ function servingPanelOpen() {
 
 function show(field) {
     activeField = field;
+    // Start each field in one-shot Shift so the first letter is capitalized
+    // (proper nouns in About Me — Carl, Chicago, Mom — and sentence starts in
+    // the composer). One-shot reverts to lowercase after that first character.
+    // The API key is case-sensitive and lowercase ("sk-ant-…"), so leave it off.
+    shiftState = field.id === 'apiKeyInput' ? 'off' : 'shift';
     setDock(dockFor(field));
     // A modal <dialog> (Settings) lives in the top layer and renders above —
     // and makes inert — anything in normal flow. So when the focused field is
