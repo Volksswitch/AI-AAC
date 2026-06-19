@@ -108,6 +108,9 @@ export function onPardonClick(handler) {
 export function onWindDownClick(handler) {
     document.getElementById('windDownBtn').addEventListener('click', handler);
 }
+export function onEndConversationClick(handler) {
+    document.getElementById('endConversationBtn').addEventListener('click', handler);
+}
 
 export function setStatus(message) {
     statusBar.textContent = message;

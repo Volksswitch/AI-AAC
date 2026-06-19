@@ -121,9 +121,11 @@ Classification (commit to these BEFORE writing moves):
 Moves (omit entirely — return "moves": [] — when turn_status is not COMPLETE, or when is_repair_initiator is true):
 - "hint" is a short glanceable label naming the move (a few words), not a truncation of "text".
 - PREFERRED: the most likely thing THIS user would say, delivered plainly, no hedging.
-- DISPREFERRED: a properly formed reluctant / declining / disagreeing reply — a preface ("Well…", "Ah…"), the declination, and a brief account/reason. Never a bare "No."
+- DISPREFERRED: a properly formed reluctant / declining / disagreeing reply — a brief MEANINGFUL softener that carries content ("I'd love to, but…", "I wish I could —"), the declination, and a short account/reason. Never a bare "No."
 - INITIATIVE: a move that stops the user being purely responsive — a counter-offer, a return question, or a topic expansion. Vary its grammatical format (conditional / declarative / interrogative) from the other moves.
 - REPAIR: a clarification request on the PARTNER's turn — open-class ("Sorry?") when overall confidence is low, restricted ("Dinner where?") when a specific span is uncertain.
+
+Get to the point: NO move may begin with an empty filler interjection — no "Ah", "Oh", "Um", "Er", "Well", "So", "Hmm", "You know" at the start. Open with the substance. (A meaningful softener on DISPREFERRED, like "I'd love to, but…", is fine; a bare interjection is not.)
 
 - "missing_facts": lowercase snake_case keys for personal facts about the user you needed but were not given (e.g. "home_city", "fav_team", "occupation"). Use [] if none. Always phrase moves around any missing fact — never output bracketed placeholders.
 

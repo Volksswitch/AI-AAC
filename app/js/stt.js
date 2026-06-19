@@ -19,6 +19,24 @@ let listeningIntent = false;
 const activePhrases = [];      // [{ text: <normalized>, expires: <ms epoch|Infinity> }]
 const ECHO_TAIL_MS = 1500;     // how long a phrase stays matchable after speech ends
 
+// Trigger-level guard against the TTS feedback loop (Ken, June 18 2026). The
+// content filter (isEcho) drops captured segments that MATCH what we're saying,
+// but the recognizer often mis-hears our own playback (drops/adds a word) so the
+// echo slips past, renews the silence timer and re-fires generation — the
+// runaway loop (stack grows, options flicker). Content matching can't be made
+// robust against mis-transcription, so we also gate at the trigger: while the
+// app itself is speaking (and for the echo tail after), captured audio does NOT
+// reset the silence timer and the checkpoint does NOT fire. The mic stays on and
+// non-echo content still accumulates into the transcript; it just can't drive a
+// generation checkpoint while WE are the ones making noise. A genuine partner
+// turn fires normally once the app falls quiet.
+let appSpeaking = false;       // true between noteSpokenStart and noteSpokenEnd
+let speechSettleUntil = 0;     // ms epoch the tail window after speech ends
+
+function speechActive() {
+    return appSpeaking || Date.now() < speechSettleUntil;
+}
+
 export function isSupported() {
     return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
 }
@@ -38,6 +56,7 @@ function normalizeForEcho(text) {
 // phrase the app is now speaking; noteSpokenEnd() lets the active phrases
 // expire after a tail window (they stay matchable until then).
 export function noteSpokenStart(text) {
+    appSpeaking = true;
     const norm = normalizeForEcho(text || '');
     if (!norm) return;
     // While speaking, the phrase never expires; noteSpokenEnd sets the deadline.
@@ -45,7 +64,9 @@ export function noteSpokenStart(text) {
 }
 
 export function noteSpokenEnd() {
-    const deadline = Date.now() + ECHO_TAIL_MS;
+    appSpeaking = false;
+    speechSettleUntil = Date.now() + ECHO_TAIL_MS;
+    const deadline = speechSettleUntil;
     for (const p of activePhrases) {
         if (p.expires === Infinity) p.expires = deadline;
     }
@@ -112,9 +133,11 @@ export function init({ onResult, onSilence, onStatus }) {
         }
         currentInterim = latestInterim;
         // Only renew the partner's turn (reset the silence checkpoint) when
-        // genuine partner content was heard. An event that was pure echo leaves
-        // the existing checkpoint alone, so generation isn't re-fired on it.
-        if (heardPartner) resetSilenceTimer();
+        // genuine partner content was heard AND the app isn't currently speaking.
+        // Pure echo leaves the checkpoint alone (content filter), and any audio
+        // captured while we speak — including mis-transcribed echo the filter
+        // missed — must not renew the turn either (trigger-level loop guard).
+        if (heardPartner && !speechActive()) resetSilenceTimer();
 
         if (onTranscript) onTranscript((accumulatedText + currentInterim).trim());
     };
@@ -141,14 +164,21 @@ export function init({ onResult, onSilence, onStatus }) {
 
 function resetSilenceTimer() {
     clearSilenceTimer();
-    silenceTimer = setTimeout(() => {
-        // The partner has gone quiet for the silence period. Hand the speech
-        // collected so far to the app for response generation, but keep
-        // recording — if the partner resumes, the next silence period will
-        // fire again with the combined speech.
-        const text = (accumulatedText + currentInterim).trim();
-        if (text && onSilencePeriod) onSilencePeriod(text);
-    }, silenceThreshold);
+    silenceTimer = setTimeout(fireSilenceCheckpoint, silenceThreshold);
+}
+
+function fireSilenceCheckpoint() {
+    // The partner has gone quiet for the silence period. Hand the speech
+    // collected so far to the app for response generation, but keep recording —
+    // if the partner resumes, the next silence period will fire again with the
+    // combined speech. Never fire while the app is speaking (or within the echo
+    // tail): our own playback could otherwise drive a checkpoint. Re-check soon.
+    if (speechActive()) {
+        silenceTimer = setTimeout(fireSilenceCheckpoint, 200);
+        return;
+    }
+    const text = (accumulatedText + currentInterim).trim();
+    if (text && onSilencePeriod) onSilencePeriod(text);
 }
 
 function clearSilenceTimer() {

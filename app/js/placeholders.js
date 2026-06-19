@@ -1,72 +1,73 @@
 import * as tts from './tts.js';
 import * as storage from './storage.js';
 
-/* Filler ladder (Conversation-Engine-Design.docx §6), timed by the user's
- * Settings (Ken, June 16 2026 — the §6 fixed-constant timings started the first
- * filler too soon and re-filled too soon):
- *   Rung 1  Acknowledgment token ("Hmm.", "Ah.", "Good question.") — the FIRST
- *           placeholder. Spoken so it lands the user's "Initial Placeholder
- *           Statement Delay" seconds after the partner FINISHES speaking. Since
- *           the silence checkpoint that triggers this already consumed the
- *           silence-period seconds of that wait, rung 1 waits the remainder
- *           (initialDelay − silencePeriod), floored at a small minimum.
- *   Rung 2+ Projection filler ("Give me a second.", "Still thinking…") from
- *           placeholders.json, re-filled every "Subsequent Placeholder Statement
- *           Delay" seconds while the user chooses, never the same phrase twice
- *           in a row.
+/* Floor-holding placeholders, timed to the user's choosing window (Ken,
+ * June 18 2026 — replaces the §6 latency-driven filler ladder).
  *
- * start()/stop() keep the same signature the app already calls. The whole
- * ladder is torn down the moment a response is selected or the partner repeats.
+ * New model: start() is called when the AI's response options ARRIVE, not at the
+ * partner-silence checkpoint, and only when the partner's action warrants it (a
+ * question — the gating lives in app.js). So a placeholder fills the silence
+ * while the user READS and CHOOSES, not the AI-latency gap. Consequences:
+ *   - The first placeholder lands "Initial Placeholder Statement Delay" seconds
+ *     AFTER the options appear. If the user picks within that window, stop() is
+ *     called first and NO placeholder plays — exactly the "don't fire one if it
+ *     isn't needed" behavior.
+ *   - Subsequent placeholders re-fill every "Subsequent Placeholder Statement
+ *     Delay" seconds while the user keeps choosing, never the same phrase twice
+ *     in a row.
+ *
+ * The phrases must be neutral and reflective, never imperative or directed at
+ * the partner ("Let me think", "Give me a second", "Hold on") — with the flat
+ * inflection of the built-in voices those read as curt/annoyed (Ken, June 18
+ * 2026). They are also question-appropriate (we only fire on questions), so
+ * "Good question." is safe. The pool lives in data/placeholders.json and will
+ * become user-editable later. start()/stop() keep the signature app.js calls.
  */
 
-// Rung 1 — short acknowledgment tokens. Inline (no fetch) so no round-trip
-// delays the first placeholder. These must read as floor-holding "I'm
-// thinking" sounds, NOT as substantive replies: a token like "Okay." / "Right."
-// / "I see." would be taken by the partner as the user's actual answer (e.g. to
-// a greeting), and being short common words they also make TTS-echo filtering
-// fragile. Keep only clearly-stalling tokens. (Ken, June 16 2026.)
-const ACK_TOKENS = [
-    'Hmm.', 'Ah.', 'Good question.', 'Let me think.',
-    'Oh.', 'Mm.', 'Well…',
+// Inline fallback if data/placeholders.json fails to load. Mirrors the neutral,
+// non-imperative default set.
+const FALLBACK_FILLERS = [
+    'Good question.',
+    "That's a good question.",
+    'Hmm, interesting.',
+    "That's interesting.",
+    'Oh, interesting.',
+    "I'm thinking about that.",
 ];
 
-// Floor for the rung-1 delay when the initial-delay setting is at/below the
-// silence period, so the first filler never fires effectively instantly.
-const MIN_RUNG1_DELAY = 500; // ms after the silence checkpoint
-
-let fillers = [];           // rung 2/3 projection pool (from JSON)
+let fillers = [];
 let timer = null;
 let active = false;
-let lastAck = -1;
-let lastFiller = -1;
+let last = -1;
 
 async function loadFillers() {
     if (fillers.length > 0) return;
-    const response = await fetch('data/placeholders.json');
-    fillers = await response.json();
+    try {
+        const response = await fetch('data/placeholders.json');
+        const data = await response.json();
+        if (Array.isArray(data) && data.length) fillers = data;
+    } catch { /* fall back below */ }
+    if (fillers.length === 0) fillers = FALLBACK_FILLERS.slice();
 }
 
-function pick(list, last) {
+function pick(list, prev) {
     if (list.length <= 1) return 0;
     let index;
     do {
         index = Math.floor(Math.random() * list.length);
-    } while (index === last);
+    } while (index === prev);
     return index;
 }
 
 export async function start() {
     stop();
     active = true;
-    // Kick off the projection pool load in parallel; rung 1 doesn't wait on it.
-    loadFillers().catch(() => { /* rung 1 still works without it */ });
-    // First placeholder lands initialDelay seconds after the partner finished.
-    // The silence checkpoint already consumed silencePeriod of that, so wait
-    // the remainder here.
+    // Load the pool in parallel; speak() ensures it's ready before the first use.
+    loadFillers().catch(() => { /* fallback handled in loadFillers */ });
+    // First placeholder lands initialDelay seconds after the options appeared
+    // (= after start() was called). A quick selection cancels it via stop().
     const { initialDelay } = storage.loadPlaceholderSettings(); // seconds
-    const silencePeriod = storage.loadSilenceThreshold();        // seconds
-    const rung1Delay = Math.max(MIN_RUNG1_DELAY, (initialDelay - silencePeriod) * 1000);
-    timer = setTimeout(rung1, rung1Delay);
+    timer = setTimeout(speak, initialDelay * 1000);
 }
 
 export function stop() {
@@ -78,35 +79,20 @@ export function stop() {
     tts.cancel();
 }
 
-// Rung 1 — the first placeholder: a short acknowledgment token, no LLM. The
-// next placeholder follows one subsequentDelay later.
-async function rung1() {
+async function speak() {
     if (!active) return;
-    lastAck = pick(ACK_TOKENS, lastAck);
-    await tts.speak(ACK_TOKENS[lastAck]);
-    if (!active) return;
-    scheduleRefill();
-}
-
-// Rung 2+ — projection filler re-filled every subsequentDelay while the user
-// chooses a response.
-async function refill() {
-    if (!active) return;
-    await speakFiller();
-    if (!active) return;
-    scheduleRefill();
-}
-
-function scheduleRefill() {
-    const { subsequentDelay } = storage.loadPlaceholderSettings();
-    timer = setTimeout(refill, subsequentDelay * 1000);
-}
-
-async function speakFiller() {
     if (fillers.length === 0) {
-        try { await loadFillers(); } catch { return; }
+        try { await loadFillers(); } catch { /* ignore */ }
     }
-    if (fillers.length === 0) return;
-    lastFiller = pick(fillers, lastFiller);
-    await tts.speak(fillers[lastFiller]);
+    if (!active) return;
+    if (fillers.length === 0) { scheduleNext(); return; }
+    last = pick(fillers, last);
+    await tts.speak(fillers[last]);
+    if (!active) return;
+    scheduleNext();
+}
+
+function scheduleNext() {
+    const { subsequentDelay } = storage.loadPlaceholderSettings();
+    timer = setTimeout(speak, subsequentDelay * 1000);
 }

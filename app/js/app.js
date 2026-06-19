@@ -14,7 +14,7 @@ import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.3.8';
+const APP_VERSION = '0.3.9';
 
 const conversationHistory = [];
 let isListening = false;
@@ -71,6 +71,7 @@ function initApp() {
     ui.onHoldOnClick(handleHoldOn);
     ui.onPardonClick(handlePardon);
     ui.onWindDownClick(handleWindDown);
+    ui.onEndConversationClick(handleEndConversation);
     ui.showEngineState(engine.getSnapshot());
     worldviewUI.init();
     keyboard.init();
@@ -144,7 +145,11 @@ async function handleSilencePeriod(text) {
     currentPartnerText = text;
     ui.showTranscript(text, false);
     engine.partnerSpeaking(text);
-    placeholders.start();
+    // Placeholders no longer start here (Ken, June 18 2026). A filler must cover
+    // the user's READING/CHOOSING window, not the AI-latency gap, and must only
+    // fire for the partner actions that warrant it (questions, not statements or
+    // closings) — neither is known until the classification comes back. So the
+    // ladder is started inside generateOptions, gated on the result.
     await generateOptions(text);
 }
 
@@ -207,6 +212,22 @@ function startFreshListening() {
     stt.startListening();
 }
 
+// Partner actions that put a real response obligation on the user — the ones
+// where a "I'm-thinking-about-your-question" placeholder reads as natural. For
+// statements, greetings, assessments and closings a placeholder feels off (Ken,
+// June 18 2026), so we stay quiet.
+const FILLER_WORTHY_ACTIONS = new Set(['QUESTION', 'INVITATION', 'REQUEST']);
+
+function shouldPlayFiller(snap) {
+    const c = snap.lastClassification;
+    if (!c) return false;
+    if (c.turn_status !== 'COMPLETE' || c.is_repair_initiator) return false;
+    // Never during winding-down / closing.
+    if (snap.mode === engine.MODE.PRE_CLOSING_CLOSING) return false;
+    if (snap.phase === 'PRE_CLOSING' || snap.phase === 'CLOSING') return false;
+    return FILLER_WORTHY_ACTIONS.has(c.partner_action);
+}
+
 async function generateOptions(partnerText) {
     const token = ++generationToken;
     ui.setStatus('Generating response options...');
@@ -243,6 +264,12 @@ async function generateOptions(partnerText) {
             ui.setStatus(snap.mode === engine.MODE.REPAIR_OF_SELF
                 ? 'Partner didn\'t catch that — choose how to repeat'
                 : 'Select a response');
+            // Now that the options are on screen and we know what the partner
+            // did, start the floor-holding placeholders ONLY when they're
+            // warranted (a question, not a statement/greeting/closing). The first
+            // one lands initialDelay after this point; a quick pick cancels it.
+            if (shouldPlayFiller(snap)) placeholders.start();
+            else placeholders.stop();
         }
 
         // Record facts the model lacked — drives the questionnaire's "suggested
@@ -375,7 +402,9 @@ async function handleSayAgain() {
 async function handleHoldOn() {
     placeholders.stop();
     ui.setStatus('Speaking...');
-    await tts.speak('Hold on, let me think.');
+    // Softened from "Hold on, let me think." — imperative phrasing reads as curt
+    // through the flat built-in voices (Ken, June 18 2026).
+    await tts.speak('Hmm, let me think about that.');
     ui.setStatus(isListening ? 'Listening...' : 'Ready');
 }
 
@@ -398,6 +427,28 @@ function handleWindDown() {
     ui.showEngineState(snap);
     ui.showMoves(snap.palette, handleMoveSelected);
     ui.setStatus('Pick a closing');
+}
+
+// End conversation — hard terminate (Ken, June 18 2026). Tears everything down
+// and returns the engine to STANDBY: stop the filler ladder, cancel any speech,
+// stop listening, invalidate in-flight generation, drop the partner's
+// uncommitted turn, clear the palette/transcript, and reset the engine (empty
+// stack, floor OPEN). No danger-confirm — it's the "hang up" control, and the
+// conversation history is already logged exchange-by-exchange. Committed
+// exchanges remain in conversationHistory; only the current, unselected turn is
+// discarded.
+function handleEndConversation() {
+    placeholders.stop();
+    tts.cancel();
+    manualListenArmed = false;
+    stt.stopListening();
+    generationToken++;            // invalidate any in-flight generation
+    currentPartnerText = '';
+    engine.reset();
+    ui.showEngineState(engine.getSnapshot());
+    ui.clearResponseOptions();
+    ui.showTranscript('', false);
+    ui.setStatus('Conversation ended — tap Start conversation or Listen to begin again');
 }
 
 // "In your own words" composer — speak free-composed text in the user's
