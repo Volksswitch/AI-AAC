@@ -1,5 +1,8 @@
 # AI-Driven AAC — Project Context for Claude
 
+## Product Name
+The product is named **Conversant AAC** (decided June 18 2026). The name captures the product's core mission: transforming communication into conversation. "Conversant" carries both meanings simultaneously — fluent in conversation, and *in* conversation. The project/working directory continues to be called "AI-driven AAC" for continuity; the product-facing name in the app and documents is Conversant AAC. The product is free and open source.
+
 ## About Ken (the user)
 Ken Hackbarth is President and Founder of Volksswitch.org. He has a three-decade background as a systems engineer at AT&T Bell Laboratories. He is **not** a developer or AI/AAC researcher — he is a product manager and systems thinker. He defines requirements, makes feature decisions, and recruits beta testers. Claude Code is the developer.
 
