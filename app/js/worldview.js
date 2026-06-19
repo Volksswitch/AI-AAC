@@ -321,16 +321,22 @@ function labelFor(key) {
 }
 
 /**
- * Compact profile text injected into the generation system prompt — successor
- * to the interim name/about injection. For this build the whole profile is
- * included (it is small; RAG-lite selection is Build Step 6). Declined and
- * private fields are surfaced only as a phrase-around instruction, never with
- * their values.
+ * Compact profile text injected into the generation system prompt.
+ *
+ * Privacy model (three levels — Ken, June 19 2026):
+ *   Shareable   — value sent freely; AI may use it in any response.
+ *   Private     — value IS sent; AI uses it for context but must not volunteer
+ *                 it. It may appear in a response only if the user picks one
+ *                 that includes it. Correct for sensitive-but-useful facts
+ *                 (phone, address, people the user wants AI to know about).
+ *   Declined    — user chose "Prefer not to say"; NO value sent; phrase-around
+ *                 only. For information the user does not want the AI to know.
  */
 export function buildBlock() {
     ensureLoaded();
     const facts = [];
-    const phraseAround = new Set();
+    const privateKnown = [];   // sent to AI, but must not be volunteered
+    const phraseAround = new Set();   // declined — AI gets no value at all
 
     if (registry) {
         for (const mod of registry.modules) {
@@ -341,25 +347,32 @@ export function buildBlock() {
                     continue;
                 }
                 if (state !== 'answered') continue;
-                if (effectivePrivacy(f.key) === 'private') {
-                    // Stored but never volunteered (strict phrase-around this build).
-                    phraseAround.add(labelFor(f.key).toLowerCase());
-                    continue;
-                }
                 const v = formatValue(getField(f.key));
-                if (v) facts.push(`- ${labelFor(f.key)}: ${v}`);
+                if (!v) continue;
+                if (effectivePrivacy(f.key) === 'private') {
+                    privateKnown.push(`- ${labelFor(f.key)}: ${v}`);
+                } else {
+                    facts.push(`- ${labelFor(f.key)}: ${v}`);
+                }
             }
         }
     }
 
-    if (facts.length === 0 && phraseAround.size === 0) return '';
+    if (!facts.length && !privateKnown.length && !phraseAround.size) return '';
 
     const lines = ['You are speaking AS this person, in the first person. What you know about them:'];
     if (facts.length) lines.push('', ...facts);
+    if (privateKnown.length) {
+        lines.push(
+            '',
+            'These details are known to you for context — do not volunteer them spontaneously; only include them if the user selects a response that does:',
+            ...privateKnown
+        );
+    }
     if (phraseAround.size) {
         lines.push(
             '',
-            'Do not volunteer, state, or invent these — phrase around them if they come up: '
+            'The person chose not to share these — do not state, invent, or ask about them; phrase around if they come up: '
             + [...phraseAround].join(', ') + '.'
         );
     }

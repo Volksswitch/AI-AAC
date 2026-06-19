@@ -204,27 +204,28 @@ export function buildBlock() {
     if (!people.length) return '';
 
     const facts = [];
-    const phraseAround = [];
+    const privateKnown = [];   // AI knows these people but must not mention them spontaneously
     for (const p of people) {
-        if (p.private) {
-            phraseAround.push(p.relationship || 'someone close to me');
-            continue;
-        }
         const displayName = p.name || p.relationship || 'someone';
         const nick = p.nickname ? ` (called "${p.nickname}")` : '';
         const relParts = [p.relationship, p.livesWithMe ? 'lives with me' : ''].filter(Boolean);
         const rel = relParts.length ? ` (${relParts.join(', ')})` : '';
         const about = p.about ? ` — ${p.about}` : '';
-        facts.push(`- ${displayName}${nick}${rel}${about}`);
+        const entry = `- ${displayName}${nick}${rel}${about}`;
+        if (p.private) {
+            privateKnown.push(entry);
+        } else {
+            facts.push(entry);
+        }
     }
 
-    if (!facts.length && !phraseAround.length) return '';
+    if (!facts.length && !privateKnown.length) return '';
     const lines = ['People in my life:'];
     if (facts.length) lines.push(...facts);
-    if (phraseAround.length) {
+    if (privateKnown.length) {
         lines.push(
-            'Do not name or describe these private relationships — phrase around them if they come up: '
-            + phraseAround.join(', ') + '.'
+            'These people are known to you for context — do not bring them up unprompted; only include them if the user\'s chosen response requires it:',
+            ...privateKnown
         );
     }
     return lines.join('\n');

@@ -228,7 +228,8 @@ function renderPeople(editingId = null) {
     contentEl.append(el('button', { class: 'wv-back', text: '‹ All topics', onclick: renderHome }));
     contentEl.append(el('p', { class: 'wv-intro', text:
         'Add the people (and pets) who matter to you — name, how they relate to you, '
-        + 'and anything worth knowing. Mark someone private and the assistant will never name them.' }));
+        + 'and anything worth knowing. Mark someone private and the assistant will know about them '
+        + 'but won\'t bring them up unless you choose a response that does.' }));
 
     const people = rel.listPeople();
     for (const p of people) {
@@ -351,7 +352,7 @@ function buildPersonForm(existing) {
     const privCheck = el('input', { type: 'checkbox', id: privId });
     if (existing && existing.private) privCheck.checked = true;
     const privRow = el('label', { class: 'wv-person-checkbox-row', for: privId }, [
-        privCheck, el('span', { text: 'Private — never name this person in conversations' })
+        privCheck, el('span', { text: 'Private — AI knows but won\'t bring them up unprompted' })
     ]);
 
     card.append(el('div', { class: 'wv-person-fields' }, [nameIn, nicknameIn, relSelect, otherWrap, aboutIn, livesRow, privRow]));
@@ -434,9 +435,10 @@ function buildCard(field) {
     else if (state === 'declined') head.append(el('span', { class: 'wv-badge wv-badge-declined', text: 'Prefer not to say' }));
     card.append(head);
 
-    // Show a private notice on fields that are stored but never shared in conversations
+    // Show a private notice on fields whose value is sent to the AI for context
+    // but must not be spoken unless the user selects a response that includes it.
     if (field.defaultPrivacy === 'private') {
-        card.append(el('p', { class: 'wv-private-note', text: '🔒 Stored locally — never shared in conversations.' }));
+        card.append(el('p', { class: 'wv-private-note', text: '🔒 AI uses this for context — only spoken if you choose a response that includes it.' }));
     }
 
     if (state === 'declined') {
