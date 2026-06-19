@@ -161,13 +161,18 @@ function renderHome() {
     if (!storage.hasDataFolder()) renderFolderPrompt();
 
     contentEl.append(el('h3', { class: 'wv-section-title', text: 'Topics' }));
+    const registry = wv.getRegistry();
     for (const mod of wv.getModules()) {
         const pct = mod.total ? Math.round((mod.answered / mod.total) * 100) : 0;
         const meta = `${mod.answered} of ${mod.total} answered`
             + (mod.declined ? ` · ${mod.declined} skipped` : '');
+        // Show a lock on modules where every field is private by default
+        const fullMod = registry.modules.find((m) => m.id === mod.id);
+        const allPrivate = fullMod && fullMod.fields.every((f) => f.defaultPrivacy === 'private');
+        const titleText = mod.title + (allPrivate ? ' 🔒' : '');
         contentEl.append(el('button', { class: 'wv-module-row', onclick: () => renderModule(mod.id) }, [
             el('div', { class: 'wv-module-main' }, [
-                el('div', { class: 'wv-module-title', text: mod.title }),
+                el('div', { class: 'wv-module-title', text: titleText }),
                 el('div', { class: 'wv-module-meta', text: meta }),
                 el('div', { class: 'wv-progress' }, [
                     el('div', { class: 'wv-progress-fill', style: `width:${pct}%` })
@@ -240,14 +245,24 @@ function renderPeople(editingId = null) {
 
 function buildPersonCard(p) {
     const card = el('div', { class: 'wv-card', id: 'wvperson-' + p.id });
+
+    // Title line: "Name" or "Name "nickname" (Relationship)"
     const titleParts = [p.name || '(unnamed)'];
+    if (p.nickname) titleParts.push(`"${p.nickname}"`);
     if (p.relationship) titleParts.push(`(${p.relationship})`);
 
     const head = el('div', { class: 'wv-card-head' }, [
         el('div', { class: 'wv-question', text: titleParts.join(' ') })
     ]);
-    if (p.private) head.append(el('span', { class: 'wv-badge wv-badge-declined', text: 'Private' }));
+    if (p.private) head.append(el('span', { class: 'wv-badge wv-badge-private', text: '🔒 Private' }));
     card.append(head);
+
+    // Attribute tags (lives with me, etc.)
+    if (p.livesWithMe) {
+        card.append(el('div', { class: 'wv-person-tags' }, [
+            el('span', { class: 'wv-person-tag wv-person-tag-lives', text: '🏠 Lives with me' })
+        ]));
+    }
 
     if (p.about) card.append(el('p', { class: 'wv-person-about', text: p.about }));
 
@@ -276,7 +291,7 @@ function buildPersonCard(p) {
 const REL_GROUPS = [
     { label: 'Family', items: ['Mother', 'Father', 'Sister', 'Brother', 'Daughter', 'Son', 'Grandmother', 'Grandfather', 'Aunt', 'Uncle', 'Cousin', 'Niece', 'Nephew'] },
     { label: 'Partner', items: ['Wife', 'Husband', 'Partner'] },
-    { label: 'Friends & social', items: ['Friend', 'Best friend', 'Roommate', 'Neighbor', 'Classmate', 'Coworker'] },
+    { label: 'Friends & social', items: ['Friend', 'Close friend', 'Best friend', 'Roommate', 'Neighbor', 'Classmate', 'Coworker'] },
     { label: 'Care & support', items: ['Caregiver', 'Support worker', 'Teacher', 'Boss', 'Doctor', 'Therapist'] },
     { label: 'Pet', items: ['Pet'] }
 ];
@@ -290,6 +305,10 @@ function buildPersonForm(existing) {
 
     const nameIn = el('input', { type: 'text', class: 'wv-text', placeholder: 'Name',
         value: existing ? existing.name : '' });
+
+    const nicknameIn = el('input', { type: 'text', class: 'wv-text',
+        placeholder: 'What you call them — optional (Mom, J.J., Grandpa…)',
+        value: existing ? existing.nickname : '' });
 
     // Relationship — standard list + "Other…" (free text).
     const relSelect = el('select', { class: 'wv-select' });
@@ -321,14 +340,21 @@ function buildPersonForm(existing) {
     const aboutIn = el('input', { type: 'text', class: 'wv-text', placeholder: 'Anything worth knowing (optional)',
         value: existing ? existing.about : '' });
 
+    const livesId = 'wvlives-' + (existing ? existing.id : 'new');
+    const livesCheck = el('input', { type: 'checkbox', id: livesId });
+    if (existing && existing.livesWithMe) livesCheck.checked = true;
+    const livesRow = el('label', { class: 'wv-person-checkbox-row', for: livesId }, [
+        livesCheck, el('span', { text: 'Lives with me' })
+    ]);
+
     const privId = 'wvpriv-' + (existing ? existing.id : 'new');
     const privCheck = el('input', { type: 'checkbox', id: privId });
     if (existing && existing.private) privCheck.checked = true;
-    const privRow = el('label', { class: 'wv-person-private', for: privId }, [
-        privCheck, el('span', { text: 'Private — never name this person' })
+    const privRow = el('label', { class: 'wv-person-checkbox-row', for: privId }, [
+        privCheck, el('span', { text: 'Private — never name this person in conversations' })
     ]);
 
-    card.append(el('div', { class: 'wv-person-fields' }, [nameIn, relSelect, otherWrap, aboutIn, privRow]));
+    card.append(el('div', { class: 'wv-person-fields' }, [nameIn, nicknameIn, relSelect, otherWrap, aboutIn, livesRow, privRow]));
 
     const save = el('button', { class: 'wv-btn wv-btn-primary', text: existing ? 'Save' : 'Add person',
         onclick: async () => {
@@ -336,9 +362,21 @@ function buildPersonForm(existing) {
             const relationship = getRelationship();
             if (!name && !relationship) return;   // nothing to save
             if (existing) {
-                await rel.updatePerson(existing.id, { name, relationship, about: aboutIn.value.trim(), isPrivate: privCheck.checked });
+                await rel.updatePerson(existing.id, {
+                    name, relationship,
+                    about: aboutIn.value.trim(),
+                    nickname: nicknameIn.value.trim(),
+                    livesWithMe: livesCheck.checked,
+                    isPrivate: privCheck.checked
+                });
             } else {
-                await rel.addPerson({ name, relationship, about: aboutIn.value.trim(), isPrivate: privCheck.checked });
+                await rel.addPerson({
+                    name, relationship,
+                    about: aboutIn.value.trim(),
+                    nickname: nicknameIn.value.trim(),
+                    livesWithMe: livesCheck.checked,
+                    isPrivate: privCheck.checked
+                });
             }
             renderPeople();
         } });
@@ -362,6 +400,12 @@ function renderModule(moduleId) {
     contentEl.innerHTML = '';
 
     contentEl.append(el('button', { class: 'wv-back', text: '‹ All topics', onclick: renderHome }));
+
+    // Show module-level note if present (e.g. the "Private by default" notice on A5)
+    if (mod.note) {
+        contentEl.append(el('p', { class: 'wv-module-note', text: '🔒 ' + mod.note }));
+    }
+
     for (const field of mod.fields) {
         contentEl.append(buildCard(field));
     }
@@ -389,6 +433,11 @@ function buildCard(field) {
     if (state === 'answered') head.append(el('span', { class: 'wv-badge wv-badge-answered', text: '✓ Answered' }));
     else if (state === 'declined') head.append(el('span', { class: 'wv-badge wv-badge-declined', text: 'Prefer not to say' }));
     card.append(head);
+
+    // Show a private notice on fields that are stored but never shared in conversations
+    if (field.defaultPrivacy === 'private') {
+        card.append(el('p', { class: 'wv-private-note', text: '🔒 Stored locally — never shared in conversations.' }));
+    }
 
     if (state === 'declined') {
         card.append(el('div', { class: 'wv-actions' }, [

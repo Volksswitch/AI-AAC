@@ -99,6 +99,9 @@ function insert(text) {
     const pos = start + text.length;
     f.setSelectionRange(pos, pos);
     f.dispatchEvent(new Event('input', { bubbles: true }));
+    // Keep the cursor visible as text grows past the field width (the keyboard
+    // narrows inputs compared to the full-width OS layout).
+    requestAnimationFrame(() => { if (f.isConnected && f.tagName === 'INPUT') f.scrollLeft = f.scrollWidth; });
 }
 
 function backspace() {
@@ -396,6 +399,9 @@ function show(field) {
     // bottom dock; centring it lands it in the visible band above the keys.
     requestAnimationFrame(() => {
         try { field.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* ignore */ }
+        // Scroll the input so the end of any existing text stays visible after
+        // the keyboard opens and potentially narrows the field.
+        if (field.tagName === 'INPUT') field.scrollLeft = field.scrollWidth;
     });
 }
 

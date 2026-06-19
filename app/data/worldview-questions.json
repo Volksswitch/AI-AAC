@@ -16,8 +16,7 @@
         { "key": "nickname", "q": "Any nickname you like to be called?", "type": "text", "options": [], "fills": ["nickname"], "sensitive": false, "defaultPrivacy": "shareable" },
         { "key": "pronouns", "q": "What pronouns do you use?", "type": "choice", "options": ["she/her", "he/him", "they/them"], "fills": ["pronouns"], "sensitive": false, "defaultPrivacy": "shareable" },
         { "key": "age_birthyear", "q": "How old are you, or what year were you born?", "type": "number", "options": [], "fills": ["age", "birth year"], "sensitive": true, "defaultPrivacy": "shareable" },
-        { "key": "languages", "q": "What languages do you speak or understand?", "type": "multi", "options": [], "fills": ["language"], "sensitive": false, "defaultPrivacy": "shareable" },
-        { "key": "address_terms", "q": "What do you call the important people in your life? (Mom / Mum / by name…)", "type": "multi", "options": [], "fills": ["forms of address"], "sensitive": false, "defaultPrivacy": "shareable" }
+        { "key": "languages", "q": "What languages do you speak or understand?", "type": "multi", "options": [], "fills": ["language"], "sensitive": false, "defaultPrivacy": "shareable" }
       ]
     },
     {

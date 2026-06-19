@@ -123,8 +123,10 @@ export function listPeople() {
         return {
             id: p.id,
             name: p.name,
+            nickname: (p.attrs && p.attrs.nickname) || '',
             relationship: edge ? edge.type : '',
             about: (p.attrs && p.attrs.about) || '',
+            livesWithMe: !!(p.attrs && p.attrs.livesWithMe),
             private: !!p.private
         };
     });
@@ -134,10 +136,13 @@ export function getPerson(id) {
     return listPeople().find((p) => p.id === id) || null;
 }
 
-export async function addPerson({ name, relationship = '', about = '', isPrivate = false } = {}) {
+export async function addPerson({ name, relationship = '', about = '', nickname = '', livesWithMe = false, isPrivate = false } = {}) {
     const g = ensureLoaded();
     const id = newId();
-    g.people.push({ id, name: (name || '').trim(), private: !!isPrivate, attrs: { about: (about || '').trim() } });
+    g.people.push({
+        id, name: (name || '').trim(), private: !!isPrivate,
+        attrs: { about: (about || '').trim(), nickname: (nickname || '').trim(), livesWithMe: !!livesWithMe }
+    });
     if ((relationship || '').trim()) {
         g.edges.push({ from: ME, to: id, type: relationship.trim(), attrs: {} });
     }
@@ -145,12 +150,14 @@ export async function addPerson({ name, relationship = '', about = '', isPrivate
     return id;
 }
 
-export async function updatePerson(id, { name, relationship, about, isPrivate } = {}) {
+export async function updatePerson(id, { name, relationship, about, nickname, livesWithMe, isPrivate } = {}) {
     const g = ensureLoaded();
     const p = g.people.find((x) => x.id === id);
     if (!p) return;
     if (name !== undefined) p.name = (name || '').trim();
     if (about !== undefined) { p.attrs = p.attrs || {}; p.attrs.about = (about || '').trim(); }
+    if (nickname !== undefined) { p.attrs = p.attrs || {}; p.attrs.nickname = (nickname || '').trim(); }
+    if (livesWithMe !== undefined) { p.attrs = p.attrs || {}; p.attrs.livesWithMe = !!livesWithMe; }
     if (isPrivate !== undefined) p.private = !!isPrivate;
     if (relationship !== undefined) {
         const edge = meEdge(id);
@@ -203,10 +210,12 @@ export function buildBlock() {
             phraseAround.push(p.relationship || 'someone close to me');
             continue;
         }
-        const rel = p.relationship ? ` (${p.relationship})` : '';
+        const displayName = p.name || p.relationship || 'someone';
+        const nick = p.nickname ? ` (called "${p.nickname}")` : '';
+        const relParts = [p.relationship, p.livesWithMe ? 'lives with me' : ''].filter(Boolean);
+        const rel = relParts.length ? ` (${relParts.join(', ')})` : '';
         const about = p.about ? ` — ${p.about}` : '';
-        const name = p.name || (p.relationship || 'someone');
-        facts.push(`- ${name}${rel}${about}`);
+        facts.push(`- ${displayName}${nick}${rel}${about}`);
     }
 
     if (!facts.length && !phraseAround.length) return '';
