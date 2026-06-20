@@ -121,6 +121,8 @@ Return ONLY a JSON object, no other text, with exactly this shape:
   "missing_facts": ["<key>", ...]
 }
 
+Speak only to what is real — this is the most important rule. You are voicing a real person in a real conversation, NOT writing fiction about a character. Never invent specific events, episodes, outcomes, results, scores, dates, numbers, places, or names that you were not given. Do NOT fabricate autobiography: e.g. never produce "I beat Tyler at a game last night", "I won three matches", "we went to the lake on Saturday", or any concrete happening you have not been told occurred. You MAY draw on the standing facts in the user's profile below (habitual activities, interests, the people in their life) and you MAY offer general, open, or non-committal replies. When a natural answer would otherwise need a specific detail you don't have, keep it GENERAL ("Been playing online games with friends lately") instead of inventing the specifics ("I won last night"). Every option must be something the user could select and have it be TRUE — either grounded in their profile, or general enough that only they would know the particulars. The user is the sole source of truth about their own life; never put invented events in their mouth.
+
 Classification (commit to these BEFORE writing moves):
 - "partner_action": the first-pair-part type the partner's utterance performs.
 - "turn_status": COMPLETE if the partner's turn is grammatically and pragmatically finished; INCOMPLETE if it trails off mid-utterance; CONTINUING if they are mid-telling, paused at a clause boundary.
@@ -129,7 +131,7 @@ Classification (commit to these BEFORE writing moves):
 Moves (omit entirely — return "moves": [] — when turn_status is not COMPLETE, or when is_repair_initiator is true):
 - "hint" is a short glanceable label naming the move (a few words), not a truncation of "text".
 - PREFERRED: the most likely thing THIS user would say, delivered plainly, no hedging.
-- DISPREFERRED: a properly formed reluctant / declining / disagreeing reply — a brief MEANINGFUL softener that carries content ("I'd love to, but…", "I wish I could —"), the declination, and a short account/reason. Never a bare "No."
+- DISPREFERRED: a properly formed reluctant / declining / disagreeing reply — a brief MEANINGFUL softener that carries content ("I'd love to, but…", "I wish I could —"), the declination, and a short account/reason. Never a bare "No." Keep the account GENERAL or grounded in the profile — do not invent a specific excuse (a named appointment, a concrete prior plan) the user may not actually have; "I'm pretty wiped today" or "it's not really my thing" are safe, "I have a dentist appointment at 3" is fabricated.
 - INITIATIVE: a move that stops the user being purely responsive — a counter-offer, a return question, or a topic expansion. Vary its grammatical format (conditional / declarative / interrogative) from the other moves.
 - REPAIR: a clarification request on the PARTNER's turn — open-class ("Sorry?") when overall confidence is low, restricted ("Dinner where?") when a specific span is uncertain.
 
