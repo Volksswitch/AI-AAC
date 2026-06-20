@@ -228,6 +228,16 @@ function paletteFromMoves(moves) {
         .sort((a, b) => a.priority - b.priority);
 }
 
+// Replace the current move palette WITHOUT touching the sequence stack, mode,
+// or floor — used by "Show me different options" (regenerate). The partner's
+// turn and the open obligation are unchanged; only the offered responses are
+// refreshed, so we must NOT re-ingest the classification (that would push a
+// duplicate FPP). Guards against being called when there's nothing to refresh.
+export function refreshPalette(moves) {
+    state.palette = paletteFromMoves(moves);
+    return getSnapshot();
+}
+
 function repairSelfPalette() {
     return [
         { slot: SLOT.REPAIR_RESPEAK, op: 'respeak', text: state.lastUserUtterance || '',

@@ -138,8 +138,8 @@ export function onListenClick(handler) {
     listenBtn.addEventListener('click', handler);
 }
 
-export function onRepeatClick(handler) {
-    document.getElementById('repeatBtn').addEventListener('click', handler);
+export function onRegenerateClick(handler) {
+    document.getElementById('regenerateBtn').addEventListener('click', handler);
 }
 
 export function onSettingsClick(handler) {

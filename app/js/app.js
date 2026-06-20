@@ -14,7 +14,7 @@ import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.3.15';
+const APP_VERSION = '0.3.16';
 
 const conversationHistory = [];
 let isListening = false;
@@ -59,7 +59,7 @@ function initApp() {
 
     document.getElementById('startBtn').addEventListener('click', handleStart);
     ui.onListenClick(toggleListening);
-    ui.onRepeatClick(handleRepeatRequest);
+    ui.onRegenerateClick(handleRegenerate);
     ui.onSpeakClick(handleSpeakComposed);
     ui.onClearComposerClick(() => ui.clearComposer());
     ui.onSettingsClick(openSettings);
@@ -410,16 +410,60 @@ async function handleHoldOn() {
     ui.setStatus(isListening ? 'Listening...' : 'Ready');
 }
 
-// Pardon? — manually initiate repair on the partner's turn. Pushes a nested
-// repair sequence; the partner's re-speak resolves it (engine.ingest).
+// Pardon? — the single "I didn't catch what the partner said" control. The user
+// shouldn't have to reason about sequence-stack mechanics, so this one action
+// does everything the misheard-partner case needs (Ken, June 19 2026 —
+// consolidates the former "Pardon?" + "Please repeat what you said." controls,
+// each of which did only half the job): it (1) asks the partner to repeat, (2)
+// discards the garbled capture so the re-speak starts clean (the old "Please
+// repeat" did this; "Pardon?" did not — it left the mumble in the transcript to
+// be appended to), and (3) pushes a repair sequence so the partner's re-speak
+// resolves correctly against the original question (the old "Pardon?" did this;
+// "Please repeat" did not touch the stack). engine.pardon() dedups, so tapping
+// it again before the re-speak doesn't stack a second repair.
 async function handlePardon() {
     placeholders.stop();
-    const snap = engine.pardon();
+    generationToken++;            // invalidate any in-flight generation on the garbled capture
+    const snap = engine.pardon(); // push REPAIR* (dedups); floor → partner
+    currentPartnerText = '';      // discard the misheard capture…
+    stt.resetTranscript();        // …and the accumulated STT, so the re-speak is fresh
     ui.showEngineState(snap);
+    ui.showTranscript('', false);
     ui.clearResponseOptions();
     ui.setStatus('Speaking...');
-    await tts.speak('Sorry, what was that?');
+    await tts.speak("Sorry, I didn't catch that. Could you say it again?");
     ui.setStatus(isListening ? 'Listening...' : 'Ready');
+}
+
+// "Show me different options" — the user finds the offered palette not quite
+// right and wants a fresh set for the SAME partner turn. Re-runs generation with
+// the rejected options passed as `avoid`, then refreshes ONLY the palette
+// (engine.refreshPalette) — the sequence stack / mode / floor are unchanged, so
+// we deliberately do NOT re-ingest the classification (that would push a
+// duplicate FPP). Whole-palette regenerate (not per-move) — see CLAUDE.md to-do.
+async function handleRegenerate() {
+    if (!currentPartnerText || !lastPalette.length) return;
+    const token = ++generationToken;
+    placeholders.stop();
+    ui.setStatus('Getting different options...');
+
+    const prior = lastPalette.map((m) => m.text).filter(Boolean);
+    llm.setWorldviewBlock(worldview.buildBlock());
+    llm.setRelationshipsBlock(relationships.buildBlock());
+    const history = [...conversationHistory, { role: 'partner', text: currentPartnerText }];
+
+    try {
+        const result = await llm.generateResponses(history, engine.buildRequestContext(), { avoid: prior });
+        if (token !== generationToken) return; // superseded
+        const snap = engine.refreshPalette(result.moves);
+        ui.showEngineState(snap);
+        lastPalette = snap.palette;
+        ui.showMoves(snap.palette, handleMoveSelected);
+        ui.setStatus('Select a response');
+    } catch (err) {
+        if (token !== generationToken) return;
+        ui.setStatus(`Error: ${err.message}`);
+    }
 }
 
 // Wind down — enter PRE-CLOSING and swap to the closing palette.
@@ -463,21 +507,6 @@ async function handleSpeakComposed() {
     placeholders.stop();
     ui.setStatus('Speaking...');
     await tts.speak(text);
-    ui.setStatus(isListening ? 'Listening...' : 'Ready');
-}
-
-// Persistent "Please repeat what you said." control. Discards everything
-// collected for the current exchange and keeps listening for the restatement —
-// nothing is committed or stored.
-async function handleRepeatRequest() {
-    placeholders.stop();
-    generationToken++; // invalidate any in-flight generation
-    currentPartnerText = '';
-    stt.resetTranscript();
-    ui.showTranscript('', false);
-    ui.clearResponseOptions();
-    ui.setStatus('Speaking...');
-    await tts.speak('Please repeat what you said.');
     ui.setStatus(isListening ? 'Listening...' : 'Ready');
 }
 
