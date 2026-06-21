@@ -823,14 +823,15 @@ dialog[open] {
     flex-direction: column;
 }
 
-/* Fixed panel height so the dialog is the SAME size on every tab — its size must
-   not be a function of how many options a tab has (General vs. Conversation).
-   The content area scrolls within this height. Capped to the viewport so it
-   still fits on a short screen. (NOTE: when the Windows on-screen keyboard is up
-   while editing a Settings field, panel + keyboard still can't both fit
-   vertically — see the keyboard-for-Settings discussion in CLAUDE.md.) */
+/* FIXED panel dimensions (Ken's rule — always strive for fixed-dimension UI
+   elements; the eventual goal is for this panel to match a base-UI element's
+   size + location so ONE keyguard supports every screen). Same size on every
+   tab, independent of how much content a tab has. Per-dock fixed sizes (the
+   bottom-dock override below sits in the top region so it clears the keyboard);
+   a fixed size that's larger than its content just has blank space — fine — as
+   long as it doesn't reach into the keyboard. */
 #settingsDialog {
-    height: min(52.5rem, calc(100vh - 3rem));   /* 75% taller (Ken) */
+    height: min(52.5rem, calc(100vh - 3rem));
 }
 
 /* Nudge the (centred) Settings panel into the free region beside a SIDE-docked
@@ -856,6 +857,34 @@ body.kbd-open.kbd-dock-bottom #settingsDialog {
     top: 1rem;
     bottom: auto;
     max-height: calc(52vh - 1.5rem);
+}
+
+/* When the keyboard dock is BOTTOM, the keyboard owns the lower ~half of the
+   screen. The Settings panel takes a FIXED size that matches the conversation
+   MAIN AREA (the top region, full width, above the dock) — clear of the keyboard
+   and aligned with a base-UI element toward the one-keyguard goal. Full width
+   lets the content use 3 columns so even dense tabs fit without scrolling.
+   (Side dock has no vertical conflict — the panel keeps its centered size.) */
+body.conv-bottom #settingsDialog {
+    top: 1rem;
+    bottom: auto;
+    left: 1rem;
+    right: 1rem;
+    margin: 0;
+    max-width: none;
+    width: auto;
+    height: calc(52vh - 2rem);
+}
+body.conv-bottom .tab-panel.active {
+    column-count: 3;
+}
+body.conv-bottom .tab-panel[data-tab="about"].active {
+    column-count: 2;
+}
+/* Tighten group spacing in the shorter bottom-dock panel so the densest tab
+   (Conversation) fits without scrolling. */
+body.conv-bottom .setting-group {
+    margin-bottom: 0.6rem;
 }
 
 dialog::backdrop {
