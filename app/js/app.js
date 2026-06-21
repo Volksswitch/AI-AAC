@@ -14,7 +14,7 @@ import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.3.18';
+const APP_VERSION = '0.3.19';
 
 const conversationHistory = [];
 let isListening = false;
@@ -364,7 +364,10 @@ async function commitExchange(raw, userText, index) {
     storage.logUserResponse({
         selectedText: userText,
         selectedIndex: index,
-        allOptions: lastPalette.map(m => m.text).filter(Boolean),
+        // Only a palette selection (index >= 0) has a meaningful "all options"
+        // list; a free-composed utterance (index -1) was not picked from a
+        // palette, so don't log the (possibly stale) last palette against it.
+        allOptions: index >= 0 ? lastPalette.map(m => m.text).filter(Boolean) : [],
     });
 }
 
@@ -498,16 +501,36 @@ function handleEndConversation() {
 }
 
 // "In your own words" composer — speak free-composed text in the user's
-// selected voice. The manual realization of the free-composition invariant and
-// the hand-test pathway for worldview output. MVP: speak only; whether to also
-// commit to conversation history is a deferred decision (see CLAUDE.md).
+// selected voice (the manual realization of the free-composition invariant and
+// the hand-test pathway for worldview output). Tapping Speak is the user TAKING
+// THE FLOOR with their own words, so it behaves like selecting a response (Ken,
+// Pass 14, June 21 2026 — resolves the previously-deferred "push to history?"
+// question): it terminates the partner's open turn (engine.selectMove pops the
+// partner FPP), stops recording, commits the exchange to history, and then
+// resumes listening iff auto-resume is armed (same gate as a palette pick).
 async function handleSpeakComposed() {
     const text = ui.getComposerText();
     if (!text) return;
+
     placeholders.stop();
+    generationToken++;            // invalidate any in-flight generation on the partner turn
+    stt.stopListening();
+
+    const raw = currentPartnerText;
+    currentPartnerText = '';
+
     ui.setStatus('Speaking...');
     await tts.speak(text);
-    ui.setStatus(isListening ? 'Listening...' : 'Ready');
+
+    // Take the floor: pops the partner's open FPP (terminates their statement),
+    // records this as lastUserUtterance, returns to LISTENING with floor OPEN.
+    engine.selectMove({ text });
+    ui.showEngineState(engine.getSnapshot());
+    ui.clearResponseOptions();    // any AI palette shown is now stale
+    ui.clearComposer();           // the composed text has been spoken + committed
+
+    await commitExchange(raw, text, -1);
+    resumeOrIdle();
 }
 
 // --- Settings dialog ---
