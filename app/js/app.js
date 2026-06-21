@@ -16,7 +16,7 @@ import * as fastPhrases from './fast-phrases.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.5.11';
+const APP_VERSION = '0.5.12';
 
 const conversationHistory = [];
 let isListening = false;
@@ -265,7 +265,7 @@ async function generateOptions(partnerText) {
     llm.setRelationshipsBlock(relationships.buildBlock());
 
     try {
-        const result = await llm.generateResponses(history, engine.buildRequestContext());
+        const result = await llm.generateResponses(history, engine.buildRequestContext(), { perCategory: storage.loadResponsesPerCategory() });
         if (token !== generationToken) return; // a newer silence period superseded this
 
         // Engine ingests the classification and updates mode / stack / palette.
@@ -519,7 +519,7 @@ async function handleRegenerate() {
     const history = [...conversationHistory, { role: 'partner', text: currentPartnerText }];
 
     try {
-        const result = await llm.generateResponses(history, engine.buildRequestContext(), { avoid: prior });
+        const result = await llm.generateResponses(history, engine.buildRequestContext(), { avoid: prior, perCategory: storage.loadResponsesPerCategory() });
         if (token !== generationToken) return; // superseded
         const snap = engine.refreshPalette(result.moves);
         ui.showEngineState(snap);
@@ -562,7 +562,7 @@ async function handleReframe() {
     const history = [...conversationHistory, { role: 'partner', text: currentPartnerText }];
 
     try {
-        const result = await llm.generateResponses(history, engine.buildRequestContext(), { steer });
+        const result = await llm.generateResponses(history, engine.buildRequestContext(), { steer, perCategory: storage.loadResponsesPerCategory() });
         if (token !== generationToken) return; // superseded
         const snap = engine.refreshPalette(result.moves);
         ui.showEngineState(snap);
@@ -875,11 +875,13 @@ function openSettings() {
     const initialDelayInput = document.getElementById('initialDelayInput');
     const subsequentDelayInput = document.getElementById('subsequentDelayInput');
     const maxPlaceholdersInput = document.getElementById('maxPlaceholdersInput');
+    const responsesPerCategoryInput = document.getElementById('responsesPerCategoryInput');
 
     apiKeyInput.value = storage.loadApiKey() || '';
     populateVoiceSelect();
     silenceThresholdInput.value = storage.loadSilenceThreshold();
     autoRelistenInput.checked = storage.loadAutoRelisten();
+    responsesPerCategoryInput.value = storage.loadResponsesPerCategory();
     const keyboardMode = storage.loadKeyboardMode();
     const keyboardRadio = document.querySelector(`input[name="keyboardMode"][value="${keyboardMode}"]`);
     if (keyboardRadio) keyboardRadio.checked = true;
@@ -962,6 +964,7 @@ function openSettings() {
         storage.saveSilenceThreshold(threshold);
     };
     autoRelistenInput.onchange = () => storage.saveAutoRelisten(autoRelistenInput.checked);
+    responsesPerCategoryInput.onchange = () => storage.saveResponsesPerCategory(Number(responsesPerCategoryInput.value));
     document.querySelectorAll('input[name="keyboardMode"]').forEach(radio => {
         radio.onchange = () => {
             const mode = document.querySelector('input[name="keyboardMode"]:checked')?.value || 'physical';

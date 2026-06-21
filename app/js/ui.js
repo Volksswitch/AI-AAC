@@ -124,86 +124,96 @@ const SLOT_META = {
     CLOSING:         { badge: 'CLOSING',      cls: 'slot-persistent' },
 };
 
-// The response footprint is a fixed RESERVED grid (Rule 1) — 4 slots (2×2 with a
-// side dock, 1×4 with a bottom dock). Empty slots are real estate held open even
-// at rest, because the "In my own words" input box overlays this exact space.
+// The response footprint is a fixed RESERVED grid of 4 CELLS (Rule 1) — 2×2 with
+// a side dock, 1×4 with a bottom dock. Each cell is one category; it holds 1 or 2
+// stacked option buttons (the "responses per category" setting). Empty cells are
+// real estate held open even at rest (the "In my own words" box overlays here).
 const RESERVED_SLOTS = 4;
-
-// The four reserved slots in their fixed order, so even EMPTY cards show their
-// slot color before any conversation begins (Ken) — the triple coding is present
-// at rest. `startIndex` lets padding after a partial palette continue the colors.
 const SLOT_ORDER = ['slot-preferred', 'slot-dispreferred', 'slot-initiative', 'slot-repair'];
+const CATEGORY_SLOTS = ['PREFERRED', 'DISPREFERRED', 'INITIATIVE', 'REPAIR'];
 
-function appendEmptyCards(startIndex, n) {
-    for (let i = 0; i < n; i++) {
-        const slotCls = SLOT_ORDER[startIndex + i] || 'slot-persistent';
-        const empty = document.createElement('div');
-        empty.className = `move-card move-card-empty ${slotCls}`;
-        empty.setAttribute('aria-hidden', 'true');
-        responseOptions.appendChild(empty);
-    }
+// A card shows the RESPONSE TEXT large and easy to read (no separate hint — Ken);
+// the slot badge, slot color, and latency dot remain (triple coding). `half`
+// shrinks the text for a 2-up (stacked) category cell.
+function buildMoveCard(move, index, onSelect, half) {
+    const meta = SLOT_META[move.slot] || { badge: move.slot, cls: 'slot-persistent' };
+    const roundtrip = move.latency === 'roundtrip';
+    // Round-trip moves (rephrase/expand) have no text yet → show their hint label.
+    const text = (move.text && move.text.trim()) ? move.text : (move.hint || '');
+
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `move-card ${meta.cls} ${roundtrip ? 'latency-roundtrip' : 'latency-instant'}${half ? ' move-card-half' : ''}`;
+    card.setAttribute('aria-label', `${meta.badge}: ${text}${roundtrip ? ' (generates on selection)' : ''}`);
+    card.innerHTML = `
+        <span class="move-card-top">
+            <span class="move-badge">${escapeHtml(meta.badge)}</span>
+            <span class="move-latency" title="${roundtrip ? 'Generates when selected' : 'Speaks instantly'}"></span>
+        </span>
+        <span class="move-response">${escapeHtml(text)}</span>
+    `;
+    card.addEventListener('click', () => {
+        if (roundtrip) card.classList.add('working');
+        onSelect(move, index);
+    });
+    return card;
+}
+
+function buildEmptyCell(slotCls) {
+    const cell = document.createElement('div');
+    cell.className = `move-cell ${slotCls}`;
+    const empty = document.createElement('div');
+    empty.className = `move-card move-card-empty ${slotCls}`;
+    empty.setAttribute('aria-hidden', 'true');
+    cell.appendChild(empty);
+    return cell;
 }
 
 export function showMoves(palette, onSelect) {
-    if (!palette || palette.length === 0) {
-        clearResponseOptions();
-        return;
-    }
     responseOptions.classList.remove('is-empty');
     responseOptions.innerHTML = '';
-    // Brief crossfade of contents on each render (geometry never moves) —
-    // motion informs ("the cards changed"), never relocates (§5). Honoring
-    // prefers-reduced-motion is handled in CSS.
+    // Brief crossfade of contents on each render (geometry never moves, §5).
     responseOptions.classList.remove('palette-enter');
     void responseOptions.offsetWidth; // restart the animation
     responseOptions.classList.add('palette-enter');
 
-    palette.forEach((move, index) => {
-        const meta = SLOT_META[move.slot] || { badge: move.slot, cls: 'slot-persistent' };
-        const roundtrip = move.latency === 'roundtrip';
-        const hasText = move.text && move.text.trim();
+    if (!palette || palette.length === 0) { clearResponseOptions(); return; }
 
-        const card = document.createElement('button');
-        card.type = 'button';
-        card.className = `move-card ${meta.cls} ${roundtrip ? 'latency-roundtrip' : 'latency-instant'}`;
-        card.setAttribute('aria-label',
-            `${meta.badge}: ${move.hint || move.text || ''}${roundtrip ? ' (generates on selection)' : ''}`);
+    // RESPONDING palettes group into the 4 fixed category cells (each may hold
+    // 1–2 stacked options); other palettes (openers / closers / repair-of-self)
+    // place one move per cell.
+    const isResponding = palette.some((m) => CATEGORY_SLOTS.includes(m.slot));
+    let cells;
+    if (isResponding) {
+        cells = CATEGORY_SLOTS.map((slot, i) => ({
+            moves: palette.filter((m) => m.slot === slot),
+            slotCls: SLOT_ORDER[i],
+        }));
+    } else {
+        cells = palette.map((m) => ({ moves: [m], slotCls: (SLOT_META[m.slot] || {}).cls || 'slot-persistent' }));
+    }
 
-        const formatTag = move.format
-            ? `<span class="move-format">${escapeHtml(move.format)}</span>` : '';
-        // Show the full utterance under the hint when it exists; round-trip moves
-        // (rephrase/expand) have no text yet, so the hint stands alone.
-        const fullText = hasText
-            ? `<span class="move-text">${escapeHtml(move.text)}</span>` : '';
-
-        card.innerHTML = `
-            <span class="move-card-top">
-                <span class="move-badge">${escapeHtml(meta.badge)}</span>
-                <span class="move-latency" title="${roundtrip ? 'Generates when selected' : 'Speaks instantly'}"></span>
-            </span>
-            <span class="move-hint">${escapeHtml(move.hint || move.text || '')}</span>
-            ${fullText}
-            ${formatTag}
-        `;
-        card.addEventListener('click', () => {
-            // Latency transparency: a round-trip card shows it's working in place
-            // while the generation/TTS happens (the next render replaces it).
-            if (roundtrip) card.classList.add('working');
-            onSelect(move, index);
-        });
-        responseOptions.appendChild(card);
-    });
-    // Pad to the reserved footprint so the grid geometry never changes.
-    if (palette.length < RESERVED_SLOTS) appendEmptyCards(palette.length, RESERVED_SLOTS - palette.length);
+    const count = Math.max(RESERVED_SLOTS, cells.length);
+    for (let i = 0; i < count; i++) {
+        const cell = cells[i];
+        if (!cell || !cell.moves.length) {
+            responseOptions.appendChild(buildEmptyCell(cell ? cell.slotCls : (SLOT_ORDER[i] || 'slot-persistent')));
+            continue;
+        }
+        const el = document.createElement('div');
+        el.className = `move-cell ${cell.slotCls}${cell.moves.length > 1 ? ' move-cell-split' : ''}`;
+        const half = cell.moves.length > 1;
+        cell.moves.forEach((move) => el.appendChild(buildMoveCard(move, palette.indexOf(move), onSelect, half)));
+        responseOptions.appendChild(el);
+    }
 }
 
 export function clearResponseOptions() {
-    // Keep the reserved footprint: render empty card slots, not a placeholder
-    // line, so the region's size is held even with no options / no conversation.
-    responseOptions.classList.remove('is-empty');
-    responseOptions.classList.remove('palette-enter');
+    // Keep the reserved footprint: 4 empty slot-colored cells (not a placeholder
+    // line), so the region's size is held even with no options / no conversation.
+    responseOptions.classList.remove('is-empty', 'palette-enter');
     responseOptions.innerHTML = '';
-    appendEmptyCards(0, RESERVED_SLOTS);
+    for (let i = 0; i < RESERVED_SLOTS; i++) responseOptions.appendChild(buildEmptyCell(SLOT_ORDER[i]));
 }
 
 // --- Fast-phrases panel (base UI quick-speak, Rules 9/10). The grid mirrors the

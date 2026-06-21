@@ -117,6 +117,13 @@ export async function generateResponses(conversationHistory, context = {}, opts 
         ? `\n\nThe user typed this guidance for how to respond right now — treat it as additional context AND direction, and shape every move around it. It may state facts to convey (use them — being user-authored, they are TRUE and override the "keep it general" caution), and/or how to come across (tone, length, stance). Honor it while keeping the four-slot structure. User's guidance:\n"${steerText}"`
         : '';
 
+    // 1 or 2 options per category (Settings, max 2). When 2, offer two genuinely
+    // different alternatives per slot so each category cell can show a choice.
+    const perCat = opts.perCategory === 2 ? 2 : 1;
+    const perCatBlock = perCat === 2
+        ? `\n\nProvide TWO distinct options for EACH of the four slots — 8 moves total (2 PREFERRED, 2 DISPREFERRED, 2 INITIATIVE, 2 REPAIR), in that slot order, best-first within each slot. The two options within a slot must be meaningfully DIFFERENT alternatives (different wording, angle, or content), both valid for that slot — not minor rephrasings.`
+        : '';
+
     const systemPrompt = `You are an AAC (Augmentative and Alternative Communication) assistant. A non-speaking user is in a live conversation. You speak AS the user, in their voice — not as a helpful assistant. Their communication partner just spoke. First classify what the partner is doing, then generate a palette of structurally distinct response moves the user might want to say.
 
 Return ONLY a JSON object, no other text, with exactly this shape:
@@ -152,7 +159,7 @@ Get to the point: NO move may begin with an empty filler interjection — no "Ah
 - "missing_facts": lowercase snake_case keys for personal facts about the user you needed but were not given (e.g. "home_city", "fav_team", "occupation"). Use [] if none. Always phrase moves around any missing fact — never output bracketed placeholders.
 
 Conversation context (engine state — use it, do not echo it):
-${JSON.stringify(context)}${buildProfileBlock()}${avoidBlock}${steerBlock}`;
+${JSON.stringify(context)}${buildProfileBlock()}${avoidBlock}${steerBlock}${perCatBlock}`;
 
     const messages = conversationHistory.map(entry => ({
         role: entry.role === 'partner' ? 'user' : 'assistant',
@@ -169,7 +176,7 @@ ${JSON.stringify(context)}${buildProfileBlock()}${avoidBlock}${steerBlock}`;
         },
         body: JSON.stringify({
             model: MODEL,
-            max_tokens: 700,
+            max_tokens: perCat === 2 ? 1000 : 700,
             system: systemPrompt,
             messages
         })

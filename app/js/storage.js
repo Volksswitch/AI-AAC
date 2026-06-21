@@ -220,6 +220,18 @@ export function saveSideDockPosition(pos) {
     saveSettings(settings);
 }
 
+// How many response options to generate/show per category cell: 1 or 2 (max 2
+// for now). 2 → each of the four slots offers two stacked alternatives.
+export function loadResponsesPerCategory() {
+    return Number(loadSettings().responsesPerCategory) === 2 ? 2 : 1;
+}
+
+export function saveResponsesPerCategory(n) {
+    const settings = loadSettings();
+    settings.responsesPerCategory = Number(n) === 2 ? 2 : 1;
+    saveSettings(settings);
+}
+
 // --- Fast-phrases panel (base UI) ---
 // (No set selector — one canonical list is always shown.)
 

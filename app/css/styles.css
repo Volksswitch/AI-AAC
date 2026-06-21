@@ -374,6 +374,22 @@ body.conv-side .palette-grid {
 body.conv-bottom .palette-grid {
     grid-template-columns: repeat(4, 1fr);   /* 1×4 */
 }
+
+/* Each grid item is a CATEGORY CELL holding 1–2 stacked option buttons (the
+   "responses per category" setting). The reserved (doubled) height lives on the
+   cell; the card(s) inside split it. */
+.move-cell {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.3rem, 0.7vh, 0.6rem);
+    min-height: clamp(8rem, 18vh, 14rem);
+}
+.move-cell > .move-card,
+.move-cell > .move-card-empty {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
 /* Reserved empty slot — holds the footprint open at rest / between options.
    Shows its SLOT color even when empty (the slot class supplies the tinted
    background + colored left border); the empty treatment is just dashed + faded
@@ -384,7 +400,6 @@ body.conv-bottom .palette-grid {
     cursor: default;
     opacity: 0.6;
     pointer-events: none;
-    min-height: clamp(8rem, 18vh, 14rem);
 }
 
 /* "In my own words" input box — overlays the response footprint (base UI NOT
@@ -447,7 +462,6 @@ body.conv-bottom .palette-grid {
     /* vertical padding → vh, horizontal padding → vw (independent axes). */
     padding: clamp(0.6rem, 1.4vh, 1.1rem) clamp(0.7rem, 1.2vw, 1.2rem);
     cursor: pointer;
-    min-height: clamp(8rem, 18vh, 14rem);   /* vertical axis; was a fixed 5rem */
     transition: box-shadow 0.12s, transform 0.05s;
 }
 .move-card:hover,
@@ -486,34 +500,27 @@ body.conv-bottom .palette-grid {
 .latency-instant .move-latency { background: currentColor; }
 .latency-roundtrip .move-latency { background: transparent; }
 
-/* Hint — the large, glanceable primary reading target (≥ 2× body, max 2 lines). */
-.move-hint {
-    font-size: 1.4rem;
+/* Response text — the LARGE, easy-to-read primary element (no separate hint —
+   Ken). It IS the words TTS will speak, big enough to read at a glance. Fills the
+   card; clamps to a few lines if very long. */
+.move-response {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    font-size: clamp(1.3rem, 2.6vh, 1.9rem);
     font-weight: 600;
-    line-height: 1.2;
+    line-height: 1.18;
     color: var(--ink);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
     overflow: hidden;
 }
-
-/* Full utterance — smaller; exactly what TTS will say. */
-.move-text {
-    font-size: 0.92rem;
-    color: #555;
-    line-height: 1.35;
-}
-
-/* Format tag — optional grammatical format (counter-offer, conditional…). */
-.move-format {
-    align-self: flex-start;
-    font-size: 0.7rem;
-    color: #777;
-    border: 1px solid #d8d8d8;
-    border-radius: 4px;
-    padding: 0.05rem 0.4rem;
-    text-transform: lowercase;
+/* In a 2-up (stacked) category cell each card is half-height, so size the text
+   down a notch and clamp more tightly. */
+.move-card-half .move-response {
+    font-size: clamp(1rem, 1.9vh, 1.4rem);
+    -webkit-line-clamp: 3;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    align-items: initial;
 }
 
 /* Round-trip card mid-generation: dim slightly so the wait reads as in-progress. */
