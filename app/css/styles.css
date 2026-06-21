@@ -374,14 +374,16 @@ body.conv-side .palette-grid {
 body.conv-bottom .palette-grid {
     grid-template-columns: repeat(4, 1fr);   /* 1×4 */
 }
-/* Reserved empty slot — holds the footprint open at rest / between options. */
+/* Reserved empty slot — holds the footprint open at rest / between options.
+   Shows its SLOT color even when empty (the slot class supplies the tinted
+   background + colored left border); the empty treatment is just dashed + faded
+   + inert. So the four slot colors are visible before a conversation begins. */
 .move-card-empty {
-    background: #f4f6f8;
-    border: 2px dashed #dde3e8;
-    border-left-width: 6px;
-    border-left-color: #dde3e8;
+    border-style: dashed;
     box-shadow: none;
     cursor: default;
+    opacity: 0.6;
+    pointer-events: none;
     min-height: clamp(8rem, 18vh, 14rem);
 }
 

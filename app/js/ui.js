@@ -129,10 +129,16 @@ const SLOT_META = {
 // at rest, because the "In my own words" input box overlays this exact space.
 const RESERVED_SLOTS = 4;
 
-function appendEmptyCards(n) {
+// The four reserved slots in their fixed order, so even EMPTY cards show their
+// slot color before any conversation begins (Ken) — the triple coding is present
+// at rest. `startIndex` lets padding after a partial palette continue the colors.
+const SLOT_ORDER = ['slot-preferred', 'slot-dispreferred', 'slot-initiative', 'slot-repair'];
+
+function appendEmptyCards(startIndex, n) {
     for (let i = 0; i < n; i++) {
+        const slotCls = SLOT_ORDER[startIndex + i] || 'slot-persistent';
         const empty = document.createElement('div');
-        empty.className = 'move-card move-card-empty';
+        empty.className = `move-card move-card-empty ${slotCls}`;
         empty.setAttribute('aria-hidden', 'true');
         responseOptions.appendChild(empty);
     }
@@ -188,7 +194,7 @@ export function showMoves(palette, onSelect) {
         responseOptions.appendChild(card);
     });
     // Pad to the reserved footprint so the grid geometry never changes.
-    if (palette.length < RESERVED_SLOTS) appendEmptyCards(RESERVED_SLOTS - palette.length);
+    if (palette.length < RESERVED_SLOTS) appendEmptyCards(palette.length, RESERVED_SLOTS - palette.length);
 }
 
 export function clearResponseOptions() {
@@ -197,7 +203,7 @@ export function clearResponseOptions() {
     responseOptions.classList.remove('is-empty');
     responseOptions.classList.remove('palette-enter');
     responseOptions.innerHTML = '';
-    appendEmptyCards(RESERVED_SLOTS);
+    appendEmptyCards(0, RESERVED_SLOTS);
 }
 
 // --- Fast-phrases panel (base UI quick-speak, Rules 9/10). The grid mirrors the

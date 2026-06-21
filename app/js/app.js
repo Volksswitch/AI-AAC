@@ -16,7 +16,7 @@ import * as fastPhrases from './fast-phrases.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.5.9';
+const APP_VERSION = '0.5.10';
 
 const conversationHistory = [];
 let isListening = false;
@@ -411,8 +411,31 @@ function resumeOrIdle() {
 
 // --- Persistent override controls (design §5.1) ---
 
-// Start conversation — INITIATING mode; surface pre-sequences / openers.
+// Fully clear and TERMINATE the current conversation (Ken): stop audio +
+// listening, invalidate in-flight generation, drop the uncommitted partner turn,
+// CLEAR the conversation window (transcript history) and ALL cards, and reset the
+// engine to STANDBY. Shared by End conversation and Start conversation.
+function terminateConversation() {
+    placeholders.stop();
+    tts.cancel();
+    manualListenArmed = false;
+    stt.stopListening();
+    generationToken++;                 // invalidate any in-flight generation
+    currentPartnerText = '';
+    lastPalette = [];
+    conversationHistory.length = 0;     // clear the conversation window
+    engine.reset();
+    ui.renderConversation(conversationHistory);
+    ui.setLiveTranscript('');
+    ui.setTranscriptState('idle');
+    ui.clearResponseOptions();          // clear all cards (back to empty reserved)
+    ui.showEngineState(engine.getSnapshot());
+}
+
+// Start conversation — terminate the current one (clear window + cards), then
+// open a fresh conversation in INITIATING mode with the openers.
 function handleInitiate() {
+    terminateConversation();
     const snap = engine.initiate();
     ui.showEngineState(snap);
     ui.showMoves(snap.palette, handleMoveSelected);
@@ -559,17 +582,7 @@ function handleWindDown() {
 // exchanges remain in conversationHistory; only the current, unselected turn is
 // discarded.
 function handleEndConversation() {
-    placeholders.stop();
-    tts.cancel();
-    manualListenArmed = false;
-    stt.stopListening();
-    generationToken++;            // invalidate any in-flight generation
-    currentPartnerText = '';
-    engine.reset();
-    ui.showEngineState(engine.getSnapshot());
-    ui.clearResponseOptions();
-    ui.setLiveTranscript('');
-    ui.setTranscriptState('idle');
+    terminateConversation();
     ui.setStatus('Conversation ended — tap Start conversation or Listen to begin again');
 }
 
