@@ -57,6 +57,15 @@
             </div>
         </section>
 
+        <!-- Fast phrases — BASE UI quick-speak panel (Rule 9). Content buttons
+             (text, ellipsis-truncated), category-colored. Provisional placement
+             here; final home is the keyboard's side, grid-congruent with a
+             keyboard layout for keyguard overlay (held base-layout pass). -->
+        <section id="fastPhrasesSection" class="region" aria-label="Quick phrases">
+            <h2>Quick phrases</h2>
+            <div id="fastPhrases" class="fast-phrases-panel"></div>
+        </section>
+
         <!-- Region C — Persistent controls. Always present, always the same
              order, in every mode (UI-Design.docx §3.3). The four CA overrides on
              top; the session-level controls below. -->
@@ -236,6 +245,36 @@
                         </select>
                     </div>
                     <p class="setting-hint">The initial delay is how long after the response options appear before the first placeholder is spoken — so a quick choice plays none. Subsequent delays are the interval between additional placeholders while you choose. The first placeholder acknowledges ("Good question."); later ones say you're still thinking. The maximum caps how many play before the system stays quiet (2 keeps them from sounding repetitive).</p>
+                </div>
+                <div class="setting-group">
+                        <label for="fastPhraseSetSelect">Quick-phrases set</label>
+                        <select id="fastPhraseSetSelect"></select>
+                        <p class="setting-hint">The set of one-tap phrases shown in the Quick phrases panel. Phrases are colored by kind (affirm/deny, social, pace, repair, needs, backchannel).</p>
+                    </div>
+                    <div class="setting-group">
+                        <label>Speaking a quick phrase</label>
+                        <div class="radio-row">
+                            <label class="radio-label">
+                                <input type="radio" name="fastPhraseTapMode" value="single" checked>
+                                Single tap speaks it
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="fastPhraseTapMode" value="double">
+                                Require a double tap (guards against accidental taps)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label for="doubleTapMsSelect">Double-tap interval</label>
+                        <select id="doubleTapMsSelect">
+                            <option value="300">0.3 seconds</option>
+                            <option value="400" selected>0.4 seconds</option>
+                            <option value="600">0.6 seconds</option>
+                            <option value="800">0.8 seconds</option>
+                            <option value="1000">1 second</option>
+                        </select>
+                        <p class="setting-hint">When double tap is required, how long the first tap stays armed waiting for the second. A longer interval is more forgiving for slower or less precise taps.</p>
+                    </div>
                 </div>
                 <div class="tab-panel" data-tab="about">
                     <h3>Conversant AAC</h3>

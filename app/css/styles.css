@@ -389,6 +389,55 @@ main {
 .slot-persistent .move-latency   { color: var(--slot-persistent); }
 .slot-persistent .move-badge     { background: var(--slot-persistent); color: #fff; }
 
+/* --- Fast phrases panel (base UI quick-speak, Rule 9). Category-colored
+   content buttons (color is the SECONDARY cue — text is always shown). Each
+   button is sized to a compact target; long phrases ellipsis-truncate. The grid
+   wraps; horizontal sizing on vw, vertical on vh (two-axis model). Provisional
+   placement — final home is the keyboard's side, grid-congruent for keyguard
+   overlay. --- */
+.fast-phrases-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(6rem, 10vw, 9rem), 1fr));
+    gap: clamp(0.3rem, 0.7vh, 0.6rem) clamp(0.3rem, 0.6vw, 0.6rem);
+}
+.fp-btn {
+    --fp-color: #546E7A;
+    --fp-tint: #eceff1;
+    min-height: clamp(2.4rem, 6vh, 3.4rem);
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--fp-color);
+    border-left: 5px solid var(--fp-color);
+    border-radius: 8px;
+    background: var(--fp-tint);
+    color: var(--ink);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+.fp-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+.fp-btn:hover,
+.fp-btn:focus-visible {
+    background: #fff;
+    outline: 2px solid var(--fp-color);
+    outline-offset: -1px;
+}
+.fp-btn:active { transform: translateY(1px); }
+/* Armed: first tap of a required double-tap — clearly "waiting for confirm". */
+.fp-btn.fp-armed {
+    background: var(--fp-color);
+    color: #fff;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fp-color) 35%, transparent);
+}
+
 /* Palette footer — the whole-palette regenerate control, attached to Region B. */
 #paletteFooter {
     margin-top: 0.6rem;

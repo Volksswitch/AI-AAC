@@ -11,11 +11,12 @@ import * as worldviewUI from './worldview-ui.js';
 import * as keyboard from './keyboard.js';
 import { SIDE_LAYOUTS, BOTTOM_LAYOUTS } from './keyboard-layouts.js';
 import * as viewport from './viewport.js';
+import * as fastPhrases from './fast-phrases.js';
 
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.4.2';
+const APP_VERSION = '0.4.3';
 
 const conversationHistory = [];
 let isListening = false;
@@ -85,6 +86,7 @@ function initApp() {
     ui.onWindDownClick(handleWindDown);
     ui.onEndConversationClick(handleEndConversation);
     ui.showEngineState(engine.getSnapshot());
+    renderFastPhrasesPanel();
     worldviewUI.init();
     keyboard.init();
     keyboard.setMode(storage.loadKeyboardMode());
@@ -593,6 +595,32 @@ async function handleSpeakComposed() {
     resumeOrIdle();
 }
 
+// --- Fast phrases (base UI quick-speak, Rule 9) ---
+
+// Render the selected starter set into the panel with the current tap settings.
+// Re-called when the set / tap mode / interval changes in Settings.
+function renderFastPhrasesPanel() {
+    const setId = storage.loadFastPhraseSet();
+    const set = fastPhrases.PHRASE_SETS[setId]
+        || fastPhrases.PHRASE_SETS[fastPhrases.DEFAULT_PHRASE_SET];
+    ui.renderFastPhrases(set.phrases, fastPhrases.CATEGORIES, {
+        tapMode: storage.loadFastPhraseTapMode(),
+        doubleTapMs: storage.loadDoubleTapMs(),
+        onSpeak: handleSpeakFastPhrase,
+    });
+}
+
+// A fast phrase was activated (single tap, or confirmed double tap). It speaks
+// directly (Rule 9) — it is not a composer starter and, for now, does not commit
+// to history or take the floor (varies by phrase: a backchannel isn't a turn).
+// The spoken text uses the optional per-phrase pronunciation override.
+async function handleSpeakFastPhrase(phrase) {
+    placeholders.stop();
+    ui.setStatus('Speaking...');
+    await tts.speak(phrase.speak || phrase.text);
+    ui.setStatus(isListening ? 'Listening...' : 'Ready');
+}
+
 // --- Settings dialog ---
 
 function initSettingsTabs() {
@@ -773,6 +801,21 @@ function openSettings() {
     initialDelayInput.value = placeholderSettings.initialDelay;
     subsequentDelayInput.value = placeholderSettings.subsequentDelay;
     maxPlaceholdersInput.value = placeholderSettings.maxPlaceholders;
+    // Fast-phrases panel controls.
+    const fastPhraseSetSelect = document.getElementById('fastPhraseSetSelect');
+    const doubleTapMsSelect = document.getElementById('doubleTapMsSelect');
+    fastPhraseSetSelect.innerHTML = '';
+    fastPhrases.PHRASE_SET_LIST.forEach(({ id, name }) => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = name;
+        if (id === storage.loadFastPhraseSet()) opt.selected = true;
+        fastPhraseSetSelect.appendChild(opt);
+    });
+    const tapMode = storage.loadFastPhraseTapMode();
+    const tapRadio = document.querySelector(`input[name="fastPhraseTapMode"][value="${tapMode}"]`);
+    if (tapRadio) tapRadio.checked = true;
+    doubleTapMsSelect.value = storage.loadDoubleTapMs();
     updateFolderDisplay();
 
     // Reset to General tab
@@ -873,6 +916,23 @@ function openSettings() {
     initialDelayInput.onchange = persistPlaceholders;
     subsequentDelayInput.onchange = persistPlaceholders;
     maxPlaceholdersInput.onchange = persistPlaceholders;
+
+    // Fast-phrases: persist + live-re-render the panel on any change.
+    fastPhraseSetSelect.onchange = () => {
+        storage.saveFastPhraseSet(fastPhraseSetSelect.value);
+        renderFastPhrasesPanel();
+    };
+    document.querySelectorAll('input[name="fastPhraseTapMode"]').forEach((radio) => {
+        radio.onchange = () => {
+            const mode = document.querySelector('input[name="fastPhraseTapMode"]:checked')?.value || 'single';
+            storage.saveFastPhraseTapMode(mode);
+            renderFastPhrasesPanel();
+        };
+    });
+    doubleTapMsSelect.onchange = () => {
+        storage.saveDoubleTapMs(Number(doubleTapMsSelect.value));
+        renderFastPhrasesPanel();
+    };
 
     document.getElementById('closeSettingsBtn').onclick = () => {
         // Belt-and-suspenders: persist the API key from the field on Close.

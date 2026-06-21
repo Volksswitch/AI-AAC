@@ -207,6 +207,44 @@ export function saveSideDockPosition(pos) {
     saveSettings(settings);
 }
 
+// --- Fast-phrases panel (base UI) ---
+
+// Which starter set is shown. Default the CORE set.
+export function loadFastPhraseSet() {
+    return loadSettings().fastPhraseSet || 'CORE';
+}
+
+export function saveFastPhraseSet(id) {
+    const settings = loadSettings();
+    settings.fastPhraseSet = id;
+    saveSettings(settings);
+}
+
+// Tap mode for speaking a fast phrase: 'single' (speak on one tap) or 'double'
+// (require a confirming second tap to guard against false hits — Rule 10).
+export function loadFastPhraseTapMode() {
+    return loadSettings().fastPhraseTapMode === 'double' ? 'double' : 'single';
+}
+
+export function saveFastPhraseTapMode(mode) {
+    const settings = loadSettings();
+    settings.fastPhraseTapMode = mode === 'double' ? 'double' : 'single';
+    saveSettings(settings);
+}
+
+// The double-tap interval (ms) — how long the first tap stays "armed" waiting
+// for the confirming second tap. Tunable to the user's motor control.
+export function loadDoubleTapMs() {
+    const v = Number(loadSettings().doubleTapMs);
+    return Number.isFinite(v) && v > 0 ? v : 400;
+}
+
+export function saveDoubleTapMs(ms) {
+    const settings = loadSettings();
+    settings.doubleTapMs = Number(ms) || 400;
+    saveSettings(settings);
+}
+
 // --- Conversation logging ---
 
 let conversationDirHandle = null;

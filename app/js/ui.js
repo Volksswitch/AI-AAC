@@ -159,6 +159,49 @@ export function clearResponseOptions() {
     responseOptions.innerHTML = '<p class="placeholder">Response options will appear here</p>';
 }
 
+// --- Fast-phrases panel (base UI quick-speak, Rule 9). Category-colored content
+// buttons; the phrase text is the primary cue (color is secondary grouping).
+// Activation is single-tap or a confirming double-tap (Rule 10): in double mode
+// the first tap "arms" the button (visually distinct) and a second tap within
+// doubleTapMs confirms; otherwise it disarms. Speaking is the caller's job
+// (onSpeak), so the panel stays presentation-only. ---
+const fastPhrasesPanel = document.getElementById('fastPhrases');
+
+export function renderFastPhrases(phrases, categories, opts = {}) {
+    if (!fastPhrasesPanel) return;
+    const { tapMode = 'single', doubleTapMs = 400, onSpeak } = opts;
+    fastPhrasesPanel.innerHTML = '';
+
+    let armedBtn = null;
+    let armTimer = null;
+    const disarm = () => {
+        if (armedBtn) armedBtn.classList.remove('fp-armed');
+        armedBtn = null;
+        if (armTimer) { clearTimeout(armTimer); armTimer = null; }
+    };
+
+    (phrases || []).forEach((p) => {
+        const cat = categories[p.cat] || {};
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'fp-btn';
+        btn.style.setProperty('--fp-color', cat.color || '#546E7A');
+        btn.style.setProperty('--fp-tint', cat.tint || '#eceff1');
+        btn.title = p.text;
+        btn.setAttribute('aria-label', p.text);
+        btn.innerHTML = `<span class="fp-text">${escapeHtml(p.text)}</span>`;
+        btn.addEventListener('click', () => {
+            if (tapMode === 'double') {
+                if (armedBtn === btn) { disarm(); onSpeak && onSpeak(p); }
+                else { disarm(); armedBtn = btn; btn.classList.add('fp-armed'); armTimer = setTimeout(disarm, doubleTapMs); }
+            } else {
+                onSpeak && onSpeak(p);
+            }
+        });
+        fastPhrasesPanel.appendChild(btn);
+    });
+}
+
 // --- Diagnostic engine-state panel (temporary, replaced by the real UI later) ---
 
 const engineEls = {
