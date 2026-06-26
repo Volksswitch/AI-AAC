@@ -228,7 +228,7 @@ const fpGrid = document.getElementById('fpGrid');
 // "In my own words". Phrase buttons speak (single/double tap); partner and
 // feeling buttons are TOGGLES with distinct colors and an active (selected)
 // state. `items` are the typed items; opts carries the lookups + callbacks.
-export function renderFastPhrases(layoutRows, items, opts = {}) {
+export function renderExpressPanel(layoutRows, items, opts = {}) {
     if (!fpGrid) return;
     const {
         categories = {}, influencerColors = {},

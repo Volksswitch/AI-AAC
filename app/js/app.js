@@ -11,13 +11,14 @@ import * as worldviewUI from './worldview-ui.js';
 import * as keyboard from './keyboard.js';
 import { SIDE_LAYOUTS, BOTTOM_LAYOUTS, LAYOUTS } from './keyboard-layouts.js';
 import * as viewport from './viewport.js';
-import * as fastPhrases from './fast-phrases.js';
-import * as fastEditor from './fastphrase-editor.js';
+import * as expressItems from './express-items.js';
+import * as expressPanel from './express-panel.js';
+import * as expressEditor from './express-editor.js';
 
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.5.16';
+const APP_VERSION = '0.5.17';
 
 const conversationHistory = [];
 let isListening = false;
@@ -36,7 +37,7 @@ let generationToken = 0;
 // is exactly the boundary auto-resume is meant to continue past.
 let manualListenArmed = false;
 
-// Active influencer TOGGLES from the fast-phrase panel (Ken, June 26 2026). One
+// Active influencer TOGGLES from the Express Panel (Ken, June 26 2026). One
 // active Partner (who the user is talking with) and one active Feeling (current
 // mood) at a time. The Partner personalizes openers + tells the AI who the
 // partner is; the Feeling steers the tone of suggestions. Persist across an
@@ -98,8 +99,8 @@ function initApp() {
     ui.applyControlIcons();
     applyConversationDockClasses();
     ui.clearResponseOptions(); // render the reserved empty card footprint at rest
-    renderFastPhrasesPanel();
-    fastEditor.init(document.getElementById('phraseEditor'), { onChange: renderFastPhrasesPanel });
+    renderExpressPanel();
+    expressEditor.init(document.getElementById('phraseEditor'), { onChange: renderExpressPanel });
     worldviewUI.init();
     keyboard.init();
     keyboard.setMode(storage.loadKeyboardMode());
@@ -148,6 +149,9 @@ function initApp() {
     // the cache; handleStart() reloads from the folder and runs the one-time
     // migration of the former worldview "People" module once both are loaded.
     relationships.load().catch(() => { /* falls back to empty graph */ });
+    // Express Panel items — its own model + file. Loaded from cache now; the
+    // folder copy (source of truth) is adopted in handleStart once granted.
+    expressPanel.load().then(renderExpressPanel).catch(() => { /* falls back to defaults */ });
 
     const savedKey = storage.loadApiKey();
     if (savedKey) {
@@ -213,6 +217,10 @@ async function handleStart() {
     // Same for the relationship graph.
     try { await relationships.load(); } catch { /* keep cached/empty graph */ }
     try { await relationships.syncToFolder(); } catch { /* best-effort */ }
+    // Same for the Express Panel items (adopt the folder copy, else promote cache).
+    try { await expressPanel.load(); } catch { /* keep cached/default items */ }
+    try { await expressPanel.syncToFolder(); } catch { /* best-effort */ }
+    renderExpressPanel(); // reflect any adopted items
     // Fresh conversation state for this session.
     engine.reset();
     ui.showEngineState(engine.getSnapshot());
@@ -614,11 +622,11 @@ function handleEndConversation() {
 }
 
 // The user is TAKING THE FLOOR with their own words — shared by the composer's
-// Speak and by a fast phrase. It behaves like selecting a response: terminates
+// Speak and by an Express Panel phrase. It behaves like selecting a response: terminates
 // the partner's open turn (engine.selectMove pops the partner FPP), stops
 // recording, commits the exchange to history, and resumes listening iff
 // auto-resume is armed. `historyText` is what's logged/displayed; `spokenText`
-// is what TTS says (a fast phrase may carry a distinct pronunciation form).
+// is what TTS says (an Express Panel phrase may carry a distinct pronunciation form).
 async function speakAsUserTurn(historyText, spokenText = historyText) {
     placeholders.stop();
     generationToken++;            // invalidate any in-flight generation on the partner turn
@@ -672,28 +680,28 @@ function handleCancelComposed() {
     closeComposer();
 }
 
-// --- Fast phrases (base UI quick-speak, Rule 9) ---
+// --- Express Panel (base UI quick-speak + influencers, Rule 9) ---
 
-// The fast-phrase panel mirrors the SELECTED keyboard layout (so one keyguard
+// The Express Panel mirrors the SELECTED keyboard layout (so one keyguard
 // overlays both): grab the layout rows for whichever dock is chosen and hand
-// them to the renderer along with the phrase pool. Re-called when the set, tap
+// them to the renderer along with the item list. Re-called when the items, tap
 // settings, dock, or layout changes.
-function fpLayoutRows() {
+function expressLayoutRows() {
     const dock = storage.loadKeyboardDock();
     const id = dock === 'side' ? storage.loadSideLayout() : storage.loadBottomLayout();
     return (LAYOUTS[id] && LAYOUTS[id].rows) || [];
 }
 
-function renderFastPhrasesPanel() {
+function renderExpressPanel() {
     // The user-editable, ordered typed-item list (phrase / partner / feeling).
-    ui.renderFastPhrases(fpLayoutRows(), storage.loadFastItems(), {
-        categories: fastPhrases.CATEGORIES,
-        influencerColors: fastPhrases.INFLUENCER_COLORS,
+    ui.renderExpressPanel(expressLayoutRows(), expressPanel.getItems(), {
+        categories: expressItems.CATEGORIES,
+        influencerColors: expressItems.INFLUENCER_COLORS,
         activePartnerId: activePartner ? activePartner.id : null,
         activeFeelingId: activeFeeling ? activeFeeling.id : null,
-        tapMode: storage.loadFastPhraseTapMode(),
+        tapMode: storage.loadExpressTapMode(),
         doubleTapMs: storage.loadDoubleTapMs(),
-        onSpeak: handleSpeakFastPhrase,
+        onSpeak: handleSpeakExpressItem,
         onTogglePartner: handleTogglePartner,
         onToggleFeeling: handleToggleFeeling,
         onInMyOwnWords: openComposer,
@@ -722,18 +730,18 @@ function buildSituationBlock() {
 // (situation block) — no immediate generation needed here.
 function handleTogglePartner(item) {
     activePartner = (activePartner && activePartner.id === item.id) ? null : item;
-    renderFastPhrasesPanel();
+    renderExpressPanel();
     ui.setStatus(activePartner ? `Talking with ${activePartner.nickname || activePartner.name}` : 'Partner cleared');
 }
 
 // Feeling toggle: one active at a time, same on/off/switch behavior.
 function handleToggleFeeling(item) {
     activeFeeling = (activeFeeling && activeFeeling.id === item.id) ? null : item;
-    renderFastPhrasesPanel();
+    renderExpressPanel();
     ui.setStatus(activeFeeling ? `Feeling ${activeFeeling.text.toLowerCase()}` : 'Feeling cleared');
 }
 
-// Body classes that place the dock area (fast-phrase panel / keyboard) on the
+// Body classes that place the dock area (Express Panel / keyboard) on the
 // chosen edge with the keyboard's real-estate, and select the 2×2 (side) vs 1×4
 // (bottom) response-card arrangement. Kept in sync with the keyboard dock choice.
 function applyConversationDockClasses() {
@@ -746,11 +754,11 @@ function applyConversationDockClasses() {
     document.body.classList.toggle('conv-side-left', side && !right);
 }
 
-// A fast phrase was activated (single tap, or confirmed double tap). It is the
-// user speaking, so it behaves like a selected response: spoken AND committed to
-// history (Ken — "anything spoken is part of the conversation"). Routed through
-// the shared speak-as-a-turn path.
-async function handleSpeakFastPhrase(phrase) {
+// An Express Panel phrase was activated (single tap, or confirmed double tap). It
+// is the user speaking, so it behaves like a selected response: spoken AND
+// committed to history (Ken — "anything spoken is part of the conversation").
+// Routed through the shared speak-as-a-turn path.
+async function handleSpeakExpressItem(phrase) {
     await speakAsUserTurn(phrase.text, phrase.speak || phrase.text);
 }
 
@@ -772,7 +780,7 @@ function initSettingsTabs() {
 // no text field to type into, so show the keyboard as a live preview of the
 // CHOSEN dock. Any other tab takes the preview down.
 function handleSettingsTab(tabName) {
-    if (tabName === 'phrases') { fastEditor.render(); keyboard.previewHide(); return; }
+    if (tabName === 'phrases') { expressEditor.render(); keyboard.previewHide(); return; }
     if (tabName === 'speech' && storage.loadKeyboardMode() === 'onscreen') {
         keyboard.previewShow(storage.loadKeyboardDock());
     } else {
@@ -956,9 +964,9 @@ function openSettings() {
     initialDelayInput.value = placeholderSettings.initialDelay;
     subsequentDelayInput.value = placeholderSettings.subsequentDelay;
     maxPlaceholdersInput.value = placeholderSettings.maxPlaceholders;
-    // Fast-phrases panel controls (no set selector — one list, always shown).
+    // Express Panel tap controls (no set selector — one list, always shown).
     const doubleTapMsSelect = document.getElementById('doubleTapMsSelect');
-    const tapMode = storage.loadFastPhraseTapMode();
+    const tapMode = storage.loadExpressTapMode();
     const tapRadio = document.querySelector(`input[name="fastPhraseTapMode"][value="${tapMode}"]`);
     if (tapRadio) tapRadio.checked = true;
     doubleTapMsSelect.value = storage.loadDoubleTapMs();
@@ -980,9 +988,12 @@ function openSettings() {
     document.getElementById('pickFolderBtn').onclick = async () => {
         try {
             await storage.pickDataFolder();
-            // A folder just became available — flush any cache-only worldview
-            // answers to the on-disk worldview.json.
+            // A folder just became available — reconcile the user-owned data:
+            // adopt an existing on-disk copy, else promote the cache.
             try { await worldview.syncToFolder(); } catch { /* best-effort */ }
+            try { await relationships.syncToFolder(); } catch { /* best-effort */ }
+            try { await expressPanel.syncToFolder(); } catch { /* best-effort */ }
+            renderExpressPanel();
             updateFolderDisplay();
         } catch (err) {
             if (err.name !== 'AbortError') {
@@ -1040,14 +1051,14 @@ function openSettings() {
     bottomLayoutSelect.onchange = () => {
         keyboard.setBottomLayout(bottomLayoutSelect.value);
         storage.saveBottomLayout(bottomLayoutSelect.value);
-        renderFastPhrasesPanel(); // the panel mirrors the layout
+        renderExpressPanel(); // the panel mirrors the layout
         keyboard.previewShow('bottom');
     };
     sideLayoutSelect.onpointerdown = sideLayoutSelect.onfocus = previewSide;
     sideLayoutSelect.onchange = () => {
         keyboard.setSideLayout(sideLayoutSelect.value);
         storage.saveSideLayout(sideLayoutSelect.value);
-        renderFastPhrasesPanel();
+        renderExpressPanel();
         keyboard.previewShow('side');
     };
     sideDockPositionToggle.onpointerdown = sideDockPositionToggle.onfocus = previewSide;
@@ -1067,7 +1078,7 @@ function openSettings() {
             keyboard.setKeyboardDock(dock);
             updateKeyboardPositionGroups();
             applyConversationDockClasses(); // move the dock area + re-pick 2×2/1×4
-            renderFastPhrasesPanel();        // mirror the now-current dock's layout
+            renderExpressPanel();        // mirror the now-current dock's layout
             if (storage.loadKeyboardMode() === 'onscreen') keyboard.previewShow(dock);
         };
     });
@@ -1080,17 +1091,17 @@ function openSettings() {
     subsequentDelayInput.onchange = persistPlaceholders;
     maxPlaceholdersInput.onchange = persistPlaceholders;
 
-    // Fast-phrases: persist + live-re-render the panel on any change.
+    // Express Panel: persist + live-re-render the panel on any change.
     document.querySelectorAll('input[name="fastPhraseTapMode"]').forEach((radio) => {
         radio.onchange = () => {
             const mode = document.querySelector('input[name="fastPhraseTapMode"]:checked')?.value || 'single';
-            storage.saveFastPhraseTapMode(mode);
-            renderFastPhrasesPanel();
+            storage.saveExpressTapMode(mode);
+            renderExpressPanel();
         };
     });
     doubleTapMsSelect.onchange = () => {
         storage.saveDoubleTapMs(Number(doubleTapMsSelect.value));
-        renderFastPhrasesPanel();
+        renderExpressPanel();
     };
 
     document.getElementById('closeSettingsBtn').onclick = () => {

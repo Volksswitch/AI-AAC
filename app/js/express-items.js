@@ -20,8 +20,9 @@
  * tapping a different one of the same kind switches. They carry distinct colors
  * (see INFLUENCER_COLORS) so they read apart from each other and from phrases.
  *
- * This module holds only DEFAULTS + metadata; the live list lives in storage
- * (storage.loadFastItems / saveFastItems) and is edited in Settings → Phrases.
+ * This module holds only DEFAULTS + metadata; the live list lives in the
+ * express-panel.js model (data folder + cache) and is edited in Settings →
+ * Express Panel.
  * The space cell of the layout is always "In my own words" (handled by the
  * renderer), independent of this list.
  */
@@ -60,7 +61,7 @@ const FE = (text) => ({ type: 'feeling', text });
 // Feelings lead so the influencer concept is visible, then the common phrases.
 // Partners start empty — they are personal; the user adds their own people in the
 // editor (free-form or picked from People I Know). Sized to fill a typical layout.
-// Stable ids ('d0', 'd1', …) so loadFastItems() returns the SAME id every call —
+// Stable ids ('d0', 'd1', …) so getItems() returns the SAME id every call —
 // the toggle state (active partner/feeling) is tracked by id, so an unstable id
 // would break the toggled-on highlight.
 export const DEFAULT_ITEMS = [

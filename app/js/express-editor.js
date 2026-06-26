@@ -1,10 +1,11 @@
-/* Fast-phrase panel editor (Settings → Phrases) — June 26 2026
+/* Express Panel editor (Settings → Express Panel) — June 26 2026
  *
- * Edits the single ORDERED, TYPED item list backing the fast-phrase panel (Ken's
+ * Edits the single ORDERED, TYPED item list backing the Express Panel (Ken's
  * chosen model: one list, each item tagged phrase / partner / feeling; the item's
  * position = its slot in the panel grid, so reordering re-maps the layout). A
- * starting layout is provided (fast-phrases.DEFAULT_ITEMS) and "Reset to default"
- * restores it.
+ * starting layout is provided (express-items.DEFAULT_ITEMS) and "Reset to default"
+ * restores it. The list persists via the express-panel.js model (data folder +
+ * cache), so customizations follow the user across devices.
  *
  * Partner items may be picked from People I Know (the relationship graph) or typed
  * free-form (Ken: partners "may be" known people but need not be). A picked person
@@ -17,9 +18,9 @@
  * panel updates immediately.
  */
 
-import * as storage from './storage.js';
+import * as expressPanel from './express-panel.js';
 import * as relationships from './relationships.js';
-import { CATEGORIES, FEELING_PRESETS, makeId } from './fast-phrases.js';
+import { CATEGORIES, FEELING_PRESETS, makeId } from './express-items.js';
 import { confirmDanger } from './confirm-dialog.js';
 
 let container = null;
@@ -32,7 +33,7 @@ export function init(el, opts = {}) {
 }
 
 function commit(rerender) {
-    storage.saveFastItems(current);
+    expressPanel.setItems(current);
     if (onChangeCb) onChangeCb();
     if (rerender) render();
 }
@@ -70,7 +71,7 @@ function buildToolbar() {
             cancelLabel: 'Keep mine',
         });
         if (!ok) return;
-        storage.resetFastItems();
+        expressPanel.resetItems();
         if (onChangeCb) onChangeCb();
         render();
     });
@@ -164,7 +165,7 @@ function buildRow(item, i) {
 
 export function render() {
     if (!container) return;
-    current = storage.loadFastItems();
+    current = expressPanel.getItems();
     container.innerHTML = '';
     container.appendChild(buildToolbar());
 
