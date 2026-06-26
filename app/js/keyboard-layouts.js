@@ -149,6 +149,16 @@ const B = {
     [C('s'), C('t'), C('u'), C('v'), C('w'), C('x'), C('y'), C('z'), BK()],
     [SH(), PG(), C(','), SP(4), C('.'), EN()],
   ]},
+  // QWERTY for users with touch-typing skills (Ken). Three letter rows in the
+  // standard QWERTY ORDER, aligned in a clean grid (q/a/z share column 1, etc.)
+  // so the letters are easy to find and never shift between rows; space is on the
+  // bottom row. Each row sums to 12 units so the columns line up. Infrequent
+  // special characters live on the shared symbols page (the 123 key).
+  B11: { name: 'QWERTY (touch-typist, 3-row)', dock: 'bottom', rows: [
+    [C('q'), C('w'), C('e'), C('r'), C('t'), C('y'), C('u'), C('i'), C('o'), C('p'), BK(2)],
+    [C('a'), C('s'), C('d'), C('f'), C('g'), C('h'), C('j'), C('k'), C('l'), SH(), EN(2)],
+    [C('z'), C('x'), C('c'), C('v'), C('b'), C('n'), C('m'), PG(), SP(2), C(','), C('.')],
+  ]},
 };
 
 export const LAYOUTS = { ...S, ...B };

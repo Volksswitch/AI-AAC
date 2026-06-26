@@ -118,12 +118,21 @@ export function getLastUserUtterance() { return state.lastUserUtterance; }
 // Context block the engine hands the LLM (design §9.1). The app merges this
 // with the worldview/relationship blocks before generating.
 export function buildRequestContext() {
+    // When the innermost open sequence was opened by the USER (an opener /
+    // pre-question like "Can I ask you something?") and isn't a repair, the
+    // partner's reply is an SPP to the user — so the user now holds the floor to
+    // LEAD, and generation must produce "continue/lead" moves rather than
+    // "answer the partner" moves. Surfaced explicitly so the model doesn't read
+    // the partner's go-ahead as if the partner had asked the opener.
+    const top = state.sequenceStack[state.sequenceStack.length - 1];
+    const userHoldsFloorToLead = !!(top && top.openedBy === 'USER' && top.action !== 'REPAIR');
     return {
         stt_confidence: state.lastPartnerUtterance.confidence,
-        sequence_stack: state.sequenceStack.map(s => ({ action: s.action, utterance: s.utterance })),
+        sequence_stack: state.sequenceStack.map(s => ({ action: s.action, opened_by: s.openedBy, utterance: s.utterance })),
         register: state.register,
         phase: state.phase,
         last_user_utterance: state.lastUserUtterance,
+        user_holds_floor_to_lead: userHoldsFloorToLead,
     };
 }
 
@@ -186,6 +195,15 @@ export function ingestClassification(result, partnerText) {
         top.action = state.lastClassification.partner_action;
         top.utterance = partnerText;
         top.sttConfidence = state.lastPartnerUtterance.confidence;
+    } else if (top && top.openedBy === 'USER' && top.action !== 'REPAIR') {
+        // The partner is RESPONDING to something the USER initiated — an opener
+        // or pre-question ("Can I ask you something?" → "sure"). That reply is an
+        // SPP from the partner, NOT a new FPP: it closes the user's opened
+        // sequence and hands the floor back to the user to LEAD. Pop the user's
+        // FPP; do NOT push a partner FPP. (Bug fix — without this, the partner's
+        // "sure" was treated as if the PARTNER had asked the opener, so the
+        // options answered the user's own opener instead of letting them lead.)
+        state.sequenceStack.pop();
     } else {
         // Push the partner's FPP as a newly-owed sequence.
         state.sequenceStack.push({
@@ -267,6 +285,20 @@ function closingPalette() {
 // open partner FPP — pop it. Record lastUserUtterance for later self-repair.
 export function selectMove(move) {
     state.lastUserUtterance = move.text;
+    // The user is OPENING the conversation (selected an opener). They produced an
+    // FPP (a greeting / pre-question) the partner is now expected to respond to,
+    // so push it as a USER-opened sequence. The partner's reply is then read as
+    // an SPP to the user (ingestClassification pops it and lets the user lead),
+    // NOT as a fresh partner FPP. Floor goes to the partner — we await their reply.
+    if (move.slot === SLOT.OPENER) {
+        state.sequenceStack.push({
+            action: 'OPENER', openedBy: 'USER', utterance: move.text, sttConfidence: null,
+        });
+        state.mode = MODE.LISTENING;
+        state.floor = FLOOR.PARTNER;
+        state.palette = [];
+        return getSnapshot();
+    }
     // An SPP closes the innermost partner-opened sequence.
     for (let i = state.sequenceStack.length - 1; i >= 0; i--) {
         if (state.sequenceStack[i].openedBy === 'PARTNER') {

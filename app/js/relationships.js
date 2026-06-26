@@ -222,6 +222,11 @@ export function buildBlock() {
     if (!facts.length && !privateKnown.length) return '';
     const lines = ['People in my life:'];
     if (facts.length) lines.push(...facts);
+    // Address people by their preferred term, not their given name (Ken: "when
+    // I'm talking to my mother Mary, I always call her 'mom', not 'Mary'").
+    if (people.some((p) => p.nickname)) {
+        lines.push('When you refer to or address any of these people, ALWAYS use the name shown in quotes after "called" (their preferred term of address — e.g. "mom", "dad"), never their given name.');
+    }
     if (privateKnown.length) {
         lines.push(
             'These people are known to you for context — do not bring them up unprompted; only include them if the user\'s chosen response requires it:',

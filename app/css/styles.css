@@ -225,16 +225,19 @@ body.conv-bottom .fp-row { flex: 0 0 auto; }  /* natural height in the bottom st
     margin-right: auto;   /* push the chip + session controls to the right */
 }
 
-/* Session-level controls (Start / End conversation) live in the transcript head,
-   right-aligned — icon buttons (Rule 4). */
+/* Session-level controls (Start / End conversation) live in the transcript head
+   — icon buttons (Rule 4), sized to MATCH the Say again / Hold on persistent
+   controls (Ken). More buttons may join this row over time. */
 .head-session {
     display: flex;
-    gap: 0.4rem;
-    flex: 0 0 auto;
+    gap: 0.5rem;
+    flex: 1 1 auto;
 }
 .head-session .session-btn {
-    flex: 0 0 auto;
-    padding: 0.4rem 0.55rem;
+    flex: 1 1 0;          /* fill + share the row like the persist-btn overrides */
+    min-width: 6rem;
+    padding: 0.7rem 0.8rem;
+    font-size: 1rem;
 }
 
 /* Mode chip — the engine's inferred mode, colored by the mode's dominant slot.

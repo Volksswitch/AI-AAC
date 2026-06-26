@@ -132,9 +132,10 @@ const RESERVED_SLOTS = 4;
 const SLOT_ORDER = ['slot-preferred', 'slot-dispreferred', 'slot-initiative', 'slot-repair'];
 const CATEGORY_SLOTS = ['PREFERRED', 'DISPREFERRED', 'INITIATIVE', 'REPAIR'];
 
-// A card shows the RESPONSE TEXT large and easy to read (no separate hint — Ken);
-// the slot badge, slot color, and latency dot remain (triple coding). `half`
-// shrinks the text for a 2-up (stacked) category cell.
+// A card shows ONLY the RESPONSE TEXT, large and easy to read (Ken): the slot
+// color + fixed position carry the category, so the category pill is gone, and
+// every card is spoken instantly, so the latency dot is gone too. `half` shrinks
+// the text for a 2-up (stacked) category cell.
 function buildMoveCard(move, index, onSelect, half) {
     const meta = SLOT_META[move.slot] || { badge: move.slot, cls: 'slot-persistent' };
     const roundtrip = move.latency === 'roundtrip';
@@ -143,15 +144,10 @@ function buildMoveCard(move, index, onSelect, half) {
 
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = `move-card ${meta.cls} ${roundtrip ? 'latency-roundtrip' : 'latency-instant'}${half ? ' move-card-half' : ''}`;
-    card.setAttribute('aria-label', `${meta.badge}: ${text}${roundtrip ? ' (generates on selection)' : ''}`);
-    card.innerHTML = `
-        <span class="move-card-top">
-            <span class="move-badge">${escapeHtml(meta.badge)}</span>
-            <span class="move-latency" title="${roundtrip ? 'Generates when selected' : 'Speaks instantly'}"></span>
-        </span>
-        <span class="move-response">${escapeHtml(text)}</span>
-    `;
+    card.className = `move-card ${meta.cls}${half ? ' move-card-half' : ''}`;
+    // Category isn't shown visually, so name it in the accessible label only.
+    card.setAttribute('aria-label', `${meta.badge}: ${text}`);
+    card.innerHTML = `<span class="move-response">${escapeHtml(text)}</span>`;
     card.addEventListener('click', () => {
         if (roundtrip) card.classList.add('working');
         onSelect(move, index);

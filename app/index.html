@@ -36,8 +36,6 @@
                  Start/End controls. -->
             <section id="transcriptSection" class="region" aria-label="Conversation transcript">
                 <div class="transcript-head">
-                    <h2>Conversation</h2>
-                    <span id="modeChip" class="mode-chip chip-standby" aria-live="polite">Standby</span>
                     <span class="head-session">
                         <button id="initiateBtn" type="button" class="session-btn">Start conversation</button>
                         <button id="endConversationBtn" type="button" class="session-btn session-btn-end">End conversation</button>
@@ -82,23 +80,6 @@
             </section>
 
             <div id="statusBar" aria-live="polite">Ready</div>
-
-            <!-- Engine diagnostics — collapsed by default. The mode chip is the
-                 user-facing inference; this is for development/bug reports. -->
-            <details id="engineDetails">
-            <summary>Engine diagnostics</summary>
-            <div id="enginePanel" class="panel">
-                <div class="engine-row"><span class="engine-label">Capture (mic)</span><span id="engineCapture" class="engine-val capture-off">off</span></div>
-                <div class="engine-row"><span class="engine-label">Mode</span><span id="engineMode" class="engine-val">STANDBY</span></div>
-                <div class="engine-row"><span class="engine-label">Floor</span><span id="engineFloor" class="engine-val floor-open">open</span></div>
-                <div class="engine-row"><span class="engine-label">Phase</span><span id="enginePhase" class="engine-val">BODY</span></div>
-                <div class="engine-row"><span class="engine-label">Partner action</span><span id="engineAction" class="engine-val">—</span></div>
-                <div class="engine-row"><span class="engine-label">Turn status</span><span id="engineTurnStatus" class="engine-val">—</span></div>
-                <div class="engine-row"><span class="engine-label">Repair initiator</span><span id="engineRepair" class="engine-val">—</span></div>
-                <div class="engine-row"><span class="engine-label">Sequence stack</span><span id="engineStack" class="engine-val">(empty)</span></div>
-                <div class="engine-row"><span class="engine-label">Last user said</span><span id="engineLastUser" class="engine-val">—</span></div>
-            </div>
-            </details>
         </div><!-- /#mainArea -->
 
         <!-- Dock area — occupies the keyboard's real-estate. Holds the fast-phrase
