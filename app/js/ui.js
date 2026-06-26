@@ -223,9 +223,19 @@ export function clearResponseOptions() {
 // Speaking / opening the modal is the caller's job, so this stays presentational.
 const fpGrid = document.getElementById('fpGrid');
 
-export function renderFastPhrases(layoutRows, phrases, categories, opts = {}) {
+// Render the editable, ordered typed-item list (phrase / partner / feeling) into
+// the grid cells of the paired keyboard layout, in order. The space cell becomes
+// "In my own words". Phrase buttons speak (single/double tap); partner and
+// feeling buttons are TOGGLES with distinct colors and an active (selected)
+// state. `items` are the typed items; opts carries the lookups + callbacks.
+export function renderFastPhrases(layoutRows, items, opts = {}) {
     if (!fpGrid) return;
-    const { tapMode = 'single', doubleTapMs = 400, onSpeak, onInMyOwnWords } = opts;
+    const {
+        categories = {}, influencerColors = {},
+        activePartnerId = null, activeFeelingId = null,
+        tapMode = 'single', doubleTapMs = 400,
+        onSpeak, onTogglePartner, onToggleFeeling, onInMyOwnWords,
+    } = opts;
     fpGrid.innerHTML = '';
 
     let armedBtn = null;
@@ -241,8 +251,58 @@ export function renderFastPhrases(layoutRows, phrases, categories, opts = {}) {
         f.style.flex = `${span} 1 0`;
         return f;
     };
+    const setColor = (b, color, tint) => {
+        b.style.setProperty('--fp-color', color || '#546E7A');
+        b.style.setProperty('--fp-tint', tint || '#eceff1');
+    };
 
-    let pi = 0; // index into the ordered phrase pool
+    const buildItemBtn = (item, span) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'fp-btn';
+        b.style.flex = `${span} 1 0`;
+
+        if (item.type === 'partner') {
+            const label = item.nickname || item.name || 'Partner';
+            const ic = influencerColors.partner || {};
+            setColor(b, ic.color, ic.tint);
+            b.classList.add('fp-partner');
+            if (item.id && item.id === activePartnerId) b.classList.add('fp-on');
+            b.title = `Talking with ${label}`;
+            b.setAttribute('aria-label', `Talking with ${label}${item.id === activePartnerId ? ' (on)' : ''}`);
+            b.setAttribute('aria-pressed', String(item.id === activePartnerId));
+            b.innerHTML = `<span class="fp-text">${escapeHtml(label)}</span>`;
+            b.addEventListener('click', () => onTogglePartner && onTogglePartner(item));
+            return b;
+        }
+        if (item.type === 'feeling') {
+            const ic = influencerColors.feeling || {};
+            setColor(b, ic.color, ic.tint);
+            b.classList.add('fp-feeling');
+            if (item.id && item.id === activeFeelingId) b.classList.add('fp-on');
+            b.title = `Feeling ${item.text}`;
+            b.setAttribute('aria-label', `Feeling ${item.text}${item.id === activeFeelingId ? ' (on)' : ''}`);
+            b.setAttribute('aria-pressed', String(item.id === activeFeelingId));
+            b.innerHTML = `<span class="fp-text">${escapeHtml(item.text)}</span>`;
+            b.addEventListener('click', () => onToggleFeeling && onToggleFeeling(item));
+            return b;
+        }
+        // phrase
+        const cat = categories[item.cat] || {};
+        setColor(b, cat.color, cat.tint);
+        b.title = item.text;
+        b.setAttribute('aria-label', item.text);
+        b.innerHTML = `<span class="fp-text">${escapeHtml(item.text)}</span>`;
+        b.addEventListener('click', () => {
+            if (tapMode === 'double') {
+                if (armedBtn === b) { disarm(); onSpeak && onSpeak(item); }
+                else { disarm(); armedBtn = b; b.classList.add('fp-armed'); armTimer = setTimeout(disarm, doubleTapMs); }
+            } else { onSpeak && onSpeak(item); }
+        });
+        return b;
+    };
+
+    let pi = 0; // index into the ordered item list
     (layoutRows || []).forEach((row) => {
         const rowEl = document.createElement('div');
         rowEl.className = 'fp-row';
@@ -265,26 +325,10 @@ export function renderFastPhrases(layoutRows, phrases, categories, opts = {}) {
                 rowEl.appendChild(blank(span));
                 return;
             }
-            // char or non-space action cell → next phrase, or blank if exhausted.
-            const p = phrases[pi++];
-            if (!p) { rowEl.appendChild(blank(span)); return; }
-            const cat = categories[p.cat] || {};
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'fp-btn';
-            b.style.flex = `${span} 1 0`;
-            b.style.setProperty('--fp-color', cat.color || '#546E7A');
-            b.style.setProperty('--fp-tint', cat.tint || '#eceff1');
-            b.title = p.text;
-            b.setAttribute('aria-label', p.text);
-            b.innerHTML = `<span class="fp-text">${escapeHtml(p.text)}</span>`;
-            b.addEventListener('click', () => {
-                if (tapMode === 'double') {
-                    if (armedBtn === b) { disarm(); onSpeak && onSpeak(p); }
-                    else { disarm(); armedBtn = b; b.classList.add('fp-armed'); armTimer = setTimeout(disarm, doubleTapMs); }
-                } else { onSpeak && onSpeak(p); }
-            });
-            rowEl.appendChild(b);
+            // char or non-space action cell → next item, or blank if exhausted.
+            const item = items[pi++];
+            if (!item) { rowEl.appendChild(blank(span)); return; }
+            rowEl.appendChild(buildItemBtn(item, span));
         });
         fpGrid.appendChild(rowEl);
     });

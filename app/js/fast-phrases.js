@@ -1,42 +1,34 @@
-/* Fast Phrases — base-UI quick-speak sets (June 2026)
+/* Fast Phrases — base-UI quick-speak + influencer panel (June 2026)
  *
- * Modeled on keyboard-layouts.js: phrase SETS encoded as data so the panel
- * renderer can switch between them and the chosen set is a user Setting. Per UI
- * Layout Rule 9 the fast-phrases panel is a BASE UI element (not a modal asset,
- * not an "In my own words" starter): each button SPEAKS its phrase directly,
- * shows the phrase as text (ellipsis-truncated when too long), and is exempt
- * from the icon-only rule (it's content, like a response card). Activation is
- * single- or double-tap per Rule 10.
+ * The panel is now a single USER-EDITABLE, ORDERED list of typed items (Ken,
+ * June 26 2026). Each item is one of three types, and the item's position in the
+ * list maps 1:1 to a cell of the paired keyboard layout's grid (so one static
+ * keyguard overlays both — Rule 9; the editor lets the user reorder = re-map):
  *
- * These are app-provided STARTER sets. Like the other user-owned configurable
- * sets (placeholders, openers, closers, keyboard layouts) the content becomes
- * user-editable later (its own editor + a data-folder JSON); this module is the
- * default seed and the selectable-set scaffold.
+ *   - phrase  : { type:'phrase',  text, cat, speak? }   speaks directly on tap
+ *                 (single- or confirming double-tap per Rule 10). `cat` colors it.
+ *   - partner : { type:'partner', name, nickname?, personId? }   a TOGGLE that
+ *                 marks who the user is talking with (a substitute / validation
+ *                 for partner recognition). Personalizes openers ("Hi Tim, …")
+ *                 and tells the AI who the partner is. May reference a person in
+ *                 the relationship graph (personId) or be a free-form name.
+ *   - feeling : { type:'feeling', text }                a TOGGLE that sets the
+ *                 user's current mood so suggestions lean that way.
  *
- * WHY model on keyboard layouts — the keyguard-overlay reason (Ken, June 21
- * 2026): the panel must be GRID-CONGRUENT with a keyboard layout so a SINGLE
- * static keyguard overlays BOTH — fast-phrase buttons showing through the holes
- * at rest, and the compose-modal keyboard's keys showing through the SAME holes
- * during "In my own words" (Rule 8: the modal asset superimposes over the inert
- * base panel). So the panel sits where the keyboard will appear — same side
- * (the keyboard's left/right Setting), same grid — NOT opposite it.
+ * Partner and Feeling are mutually-exclusive WITHIN their kind (one active
+ * partner, one active feeling); tapping an active one again turns it off, and
+ * tapping a different one of the same kind switches. They carry distinct colors
+ * (see INFLUENCER_COLORS) so they read apart from each other and from phrases.
  *
- * This module holds only the phrase CONTENT (the ordered sets). The GEOMETRY is
- * applied at render: the phrases fill the cells of the PAIRED keyboard layout's
- * grid 1:1 (one phrase per key-cell, ellipsis-truncated when long — Rule 9), so
- * the holes line up. Which keyboard layout a set pairs with is the binding, set
- * in the (held) base-layout pass; the content here is reusable across pairings.
- *
- * Phrase shape: { text, speak? } — `text` is shown AND spoken; optional `speak`
- * overrides only the spoken form (the display-vs-spoken / pronunciation model
- * recorded for proper nouns and static statements), falling back to `text`.
+ * This module holds only DEFAULTS + metadata; the live list lives in storage
+ * (storage.loadFastItems / saveFastItems) and is edited in Settings → Phrases.
+ * The space cell of the layout is always "In my own words" (handled by the
+ * renderer), independent of this list.
  */
 
-// Functional categories (Ken: color the phrases by category). Color is the
-// SECONDARY cue — the phrase text is always shown — so this never violates the
-// "no meaning by color alone" principle; it just groups at a glance. Hues are
-// kept distinct from the four move-slot colors where practical (repair reuses
-// purple deliberately — same concept).
+// Functional categories for PHRASE items (Ken: color phrases by category). Color
+// is the SECONDARY cue — the phrase text is always shown — so this never
+// violates "no meaning by color alone"; it just groups at a glance.
 export const CATEGORIES = {
   affirm: { label: 'Affirm / deny', color: '#00796B', tint: '#e0f2f1' }, // teal
   social: { label: 'Social',        color: '#3949AB', tint: '#e8eaf6' }, // indigo
@@ -46,23 +38,47 @@ export const CATEGORIES = {
   back:   { label: 'Backchannel',   color: '#546E7A', tint: '#eceff1' }, // blue-grey
 };
 
-// Phrase builder: P('Yes','affirm') or P('Mom','social','Mom') for a distinct
-// spoken form. `cat` keys into CATEGORIES for the button color.
-const P = (text, cat = 'back', speak) => (speak ? { text, cat, speak } : { text, cat });
+// Distinct, saturated colors for the two influencer TYPES — different from each
+// other and from every phrase category (Ken). Rendered as a solid fill so they
+// pop apart from the pastel phrase buttons; the toggled-on state is stronger still.
+export const INFLUENCER_COLORS = {
+  partner: { color: '#5D4037', tint: '#efebe9' }, // brown
+  feeling: { color: '#00838F', tint: '#e0f7fa' }, // cyan
+};
 
-// ONE canonical list of quick phrases — always displayed in full, no
-// user-selectable "sets" (Ken, June 21 2026: "we always display all possible
-// quick phrases"). Ordered by likely frequency / utility so position is stable
-// (motor automaticity) and a smaller keyguard grid still surfaces the most
-// useful ones first; sized to fill a 5-wide layout's non-space cells (32). The
-// list stays user-editable later (one list, no set picker).
-export const PHRASES = [
-  P('Yes','affirm'), P('No','affirm'), P('Yes please','affirm'), P('No thank you','affirm'),
-  P('Maybe','affirm'), P("I don't know",'affirm'), P("I'm not sure",'affirm'), P('I think so','affirm'),
-  P('Okay','back'), P('Got it','back'), P("That's funny",'back'), P('I agree','affirm'),
-  P('Please','social'), P('Thank you','social'), P("You're welcome",'social'), P('Sorry','social'),
-  P('Excuse me','social'), P('Hi','social'), P('Hello','social'), P('Bye','social'),
-  P('See you later','social'), P('Wait','pace'), P('One moment','pace'), P('Stop','pace'),
-  P('Go on','pace'), P('More','pace'), P('Not now','pace'), P('Almost done','pace'),
-  P('Let me think','pace'), P('Why?','repair'), P('Say that again','repair'), P('Help','need'),
+// Suggested feelings for the editor's quick-add (the user can type any).
+export const FEELING_PRESETS = [
+  'Happy', 'Sad', 'Angry', 'Stressed', 'Curious', 'Bored',
+  'Excited', 'Tired', 'Anxious', 'Calm', 'Frustrated', 'Grateful',
 ];
+
+// --- item builders (defaults only) ------------------------------------------
+const PH = (text, cat = 'back', speak) => (speak ? { type: 'phrase', text, cat, speak } : { type: 'phrase', text, cat });
+const FE = (text) => ({ type: 'feeling', text });
+
+// The provided STARTING LAYOUT (Ken: "a starting layout should be provided").
+// Feelings lead so the influencer concept is visible, then the common phrases.
+// Partners start empty — they are personal; the user adds their own people in the
+// editor (free-form or picked from People I Know). Sized to fill a typical layout.
+// Stable ids ('d0', 'd1', …) so loadFastItems() returns the SAME id every call —
+// the toggle state (active partner/feeling) is tracked by id, so an unstable id
+// would break the toggled-on highlight.
+export const DEFAULT_ITEMS = [
+  FE('Happy'), FE('Sad'), FE('Stressed'), FE('Curious'), FE('Tired'), FE('Excited'),
+  PH('Yes', 'affirm'), PH('No', 'affirm'), PH('Yes please', 'affirm'), PH('No thank you', 'affirm'),
+  PH('Maybe', 'affirm'), PH("I don't know", 'affirm'), PH("I'm not sure", 'affirm'), PH('I think so', 'affirm'),
+  PH('Okay', 'back'), PH('Got it', 'back'), PH("That's funny", 'back'), PH('I agree', 'affirm'),
+  PH('Please', 'social'), PH('Thank you', 'social'), PH("You're welcome", 'social'), PH('Sorry', 'social'),
+  PH('Excuse me', 'social'), PH('Hi', 'social'), PH('Bye', 'social'), PH('See you later', 'social'),
+  PH('Wait', 'pace'), PH('One moment', 'pace'), PH('Go on', 'pace'), PH('Not now', 'pace'),
+  PH('Say that again', 'repair'), PH('Help', 'need'),
+].map((it, i) => ({ id: 'd' + i, ...it }));
+
+// Assign a stable id to any item missing one (defaults + freshly-added items).
+let _n = 0;
+export function makeId() {
+  return 'fp' + Date.now().toString(36) + (_n++).toString(36);
+}
+export function ensureIds(items) {
+  return (items || []).map((it) => (it && it.id ? it : { ...it, id: makeId() }));
+}

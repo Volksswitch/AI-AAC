@@ -117,6 +117,7 @@
                 <div class="settings-tab active" data-tab="general">General</div>
                 <div class="settings-tab" data-tab="speech">Speech &amp; Input</div>
                 <div class="settings-tab" data-tab="conversation">Conversation</div>
+                <div class="settings-tab" data-tab="phrases">Phrases</div>
                 <div class="settings-tab" data-tab="about">About</div>
             </nav>
             <div id="settingsContent">
@@ -273,6 +274,10 @@
                         </select>
                         <p class="setting-hint">When double tap is required, how long the first tap stays armed waiting for the second. A longer interval is more forgiving for slower or less precise taps.</p>
                     </div>
+                </div>
+                <div class="tab-panel" data-tab="phrases">
+                    <p class="setting-hint">Edit the quick-phrase panel. Each item is a <strong>Phrase</strong> (speaks when tapped), a <strong>Partner</strong> (who you're talking with — personalizes openers and tells the AI who's there), or a <strong>Feeling</strong> (sets the mood of the suggestions). Order here = position in the panel; use ↑ ↓ to arrange and ✕ to remove.</p>
+                    <div id="phraseEditor"></div>
                 </div>
                 <div class="tab-panel" data-tab="about">
                     <h3>Conversant AAC</h3>

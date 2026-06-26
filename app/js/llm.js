@@ -5,6 +5,7 @@ let apiKey = null;
 let onUsageUpdate = null;
 let worldviewBlock = '';
 let relationshipsBlock = '';
+let situationBlock = '';
 
 export function setApiKey(key) {
     apiKey = key;
@@ -24,6 +25,15 @@ export function setRelationshipsBlock(text) {
     relationshipsBlock = (text || '').trim();
 }
 
+// The current SITUATION — who the user is talking with (active Partner toggle)
+// and how they're feeling (active Feeling toggle). Set fresh before each
+// generation; empty when no influencer is active. Partner gives the AI the
+// partner's identity (enabling nickname use + light tailoring); Feeling colors
+// the tone of the suggestions.
+export function setSituationBlock(text) {
+    situationBlock = (text || '').trim();
+}
+
 // Builds the personalization + placeholder-safety block appended to the
 // response-generation system prompt. Even with no profile set, the
 // no-brackets instruction prevents the model from emitting "[Name]" blanks.
@@ -31,6 +41,7 @@ function buildProfileBlock() {
     const sections = [];
     if (worldviewBlock) sections.push(`\n\n${worldviewBlock}`);
     if (relationshipsBlock) sections.push(`\n\n${relationshipsBlock}`);
+    if (situationBlock) sections.push(`\n\n${situationBlock}`);
     sections.push(`\n\nNever output placeholder text in square brackets such as [Name], [your name], or [city]. If you do not know a personal detail, phrase the response so it is not needed.`);
     return sections.join('');
 }

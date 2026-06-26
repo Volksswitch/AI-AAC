@@ -12,11 +12,12 @@ import * as keyboard from './keyboard.js';
 import { SIDE_LAYOUTS, BOTTOM_LAYOUTS, LAYOUTS } from './keyboard-layouts.js';
 import * as viewport from './viewport.js';
 import * as fastPhrases from './fast-phrases.js';
+import * as fastEditor from './fastphrase-editor.js';
 
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.5.13';
+const APP_VERSION = '0.5.14';
 
 const conversationHistory = [];
 let isListening = false;
@@ -34,6 +35,14 @@ let generationToken = 0;
 // stop. The automatic stop when a response is selected does NOT clear it — that
 // is exactly the boundary auto-resume is meant to continue past.
 let manualListenArmed = false;
+
+// Active influencer TOGGLES from the fast-phrase panel (Ken, June 26 2026). One
+// active Partner (who the user is talking with) and one active Feeling (current
+// mood) at a time. The Partner personalizes openers + tells the AI who the
+// partner is; the Feeling steers the tone of suggestions. Persist across an
+// exchange; cleared only by tapping the same toggle again or picking another.
+let activePartner = null;
+let activeFeeling = null;
 
 function initApp() {
     // Log the display metrics (and re-log on every viewport change) so we — and
@@ -90,6 +99,7 @@ function initApp() {
     applyConversationDockClasses();
     ui.clearResponseOptions(); // render the reserved empty card footprint at rest
     renderFastPhrasesPanel();
+    fastEditor.init(document.getElementById('phraseEditor'), { onChange: renderFastPhrasesPanel });
     worldviewUI.init();
     keyboard.init();
     keyboard.setMode(storage.loadKeyboardMode());
@@ -263,6 +273,7 @@ async function generateOptions(partnerText) {
     // Rebuilt each turn so questionnaire edits take effect immediately.
     llm.setWorldviewBlock(worldview.buildBlock());
     llm.setRelationshipsBlock(relationships.buildBlock());
+    llm.setSituationBlock(buildSituationBlock());
 
     try {
         const result = await llm.generateResponses(history, engine.buildRequestContext(), { perCategory: storage.loadResponsesPerCategory() });
@@ -447,7 +458,10 @@ function terminateConversation() {
 // open a fresh conversation in INITIATING mode with the openers.
 function handleInitiate() {
     terminateConversation();
-    const snap = engine.initiate();
+    // If a Partner is active, personalize the openers with their name ("Hi Tim,
+    // have you got a minute?" instead of "Hey, got a minute?").
+    const partnerName = activePartner ? (activePartner.nickname || activePartner.name) : '';
+    const snap = engine.initiate({ partnerName });
     ui.showEngineState(snap);
     ui.showMoves(snap.palette, handleMoveSelected);
     ui.setStatus('Pick an opener');
@@ -516,6 +530,7 @@ async function handleRegenerate() {
     const prior = lastPalette.map((m) => m.text).filter(Boolean);
     llm.setWorldviewBlock(worldview.buildBlock());
     llm.setRelationshipsBlock(relationships.buildBlock());
+    llm.setSituationBlock(buildSituationBlock());
     const history = [...conversationHistory, { role: 'partner', text: currentPartnerText }];
 
     try {
@@ -559,6 +574,7 @@ async function handleReframe() {
 
     llm.setWorldviewBlock(worldview.buildBlock());
     llm.setRelationshipsBlock(relationships.buildBlock());
+    llm.setSituationBlock(buildSituationBlock());
     const history = [...conversationHistory, { role: 'partner', text: currentPartnerText }];
 
     try {
@@ -669,13 +685,52 @@ function fpLayoutRows() {
 }
 
 function renderFastPhrasesPanel() {
-    // One canonical list, always shown in full (no selectable sets — Ken).
-    ui.renderFastPhrases(fpLayoutRows(), fastPhrases.PHRASES, fastPhrases.CATEGORIES, {
+    // The user-editable, ordered typed-item list (phrase / partner / feeling).
+    ui.renderFastPhrases(fpLayoutRows(), storage.loadFastItems(), {
+        categories: fastPhrases.CATEGORIES,
+        influencerColors: fastPhrases.INFLUENCER_COLORS,
+        activePartnerId: activePartner ? activePartner.id : null,
+        activeFeelingId: activeFeeling ? activeFeeling.id : null,
         tapMode: storage.loadFastPhraseTapMode(),
         doubleTapMs: storage.loadDoubleTapMs(),
         onSpeak: handleSpeakFastPhrase,
+        onTogglePartner: handleTogglePartner,
+        onToggleFeeling: handleToggleFeeling,
         onInMyOwnWords: openComposer,
     });
+}
+
+// Build the per-turn SITUATION text for generation from the active influencers:
+// who the user is talking with (Partner) and how they feel (Feeling). Empty when
+// neither is active. The relationships block + nickname rule handle a Partner who
+// is also a known person; this just adds "you're talking with them right now".
+function buildSituationBlock() {
+    const lines = [];
+    if (activePartner) {
+        const label = (activePartner.nickname || activePartner.name || '').trim();
+        if (label) lines.push(`You are currently talking with ${label}. When you address or refer to them, use "${label}".`);
+    }
+    if (activeFeeling && activeFeeling.text) {
+        lines.push(`The user is currently feeling ${activeFeeling.text.toLowerCase()}. Let this color the tone of the suggested responses, while keeping them authentic to the user.`);
+    }
+    return lines.join(' ');
+}
+
+// Partner toggle: one active at a time. Tapping the active one turns it off;
+// tapping another switches. Re-renders the panel to reflect the selection. The
+// effect is applied at conversation open (personalized openers) and each turn
+// (situation block) — no immediate generation needed here.
+function handleTogglePartner(item) {
+    activePartner = (activePartner && activePartner.id === item.id) ? null : item;
+    renderFastPhrasesPanel();
+    ui.setStatus(activePartner ? `Talking with ${activePartner.nickname || activePartner.name}` : 'Partner cleared');
+}
+
+// Feeling toggle: one active at a time, same on/off/switch behavior.
+function handleToggleFeeling(item) {
+    activeFeeling = (activeFeeling && activeFeeling.id === item.id) ? null : item;
+    renderFastPhrasesPanel();
+    ui.setStatus(activeFeeling ? `Feeling ${activeFeeling.text.toLowerCase()}` : 'Feeling cleared');
 }
 
 // Body classes that place the dock area (fast-phrase panel / keyboard) on the
@@ -717,6 +772,7 @@ function initSettingsTabs() {
 // no text field to type into, so show the keyboard as a live preview of the
 // CHOSEN dock. Any other tab takes the preview down.
 function handleSettingsTab(tabName) {
+    if (tabName === 'phrases') { fastEditor.render(); keyboard.previewHide(); return; }
     if (tabName === 'speech' && storage.loadKeyboardMode() === 'onscreen') {
         keyboard.previewShow(storage.loadKeyboardDock());
     } else {

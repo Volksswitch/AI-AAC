@@ -611,6 +611,32 @@ body.conv-bottom .fp-btn { min-height: clamp(2.2rem, 7.5vh, 4rem); }
 .fp-btn.fp-imow .fp-text { font-weight: 700; }
 .fp-btn.fp-imow:hover,
 .fp-btn.fp-imow:focus-visible { background: #1d2b38; color: #fff; outline-color: #1d2b38; }
+/* Partner / Feeling influencer TOGGLES — solid fill so they read apart from the
+   pastel phrase buttons and from each other (distinct hues set inline). The
+   toggled-ON state adds a heavy ring + check so "this is active" is unmistakable
+   (Rule 6 — a sticky/latched action shows as a selected button). */
+.fp-btn.fp-partner,
+.fp-btn.fp-feeling {
+    background: var(--fp-color);
+    color: #fff;
+    border-color: var(--fp-color);
+}
+.fp-btn.fp-partner:hover, .fp-btn.fp-partner:focus-visible,
+.fp-btn.fp-feeling:hover, .fp-btn.fp-feeling:focus-visible {
+    background: color-mix(in srgb, var(--fp-color) 82%, #000);
+    color: #fff;
+    outline-color: var(--fp-color);
+}
+.fp-btn.fp-on {
+    box-shadow: inset 0 0 0 3px #fff, 0 0 0 3px var(--fp-color);
+    position: relative;
+    z-index: 1;
+}
+.fp-btn.fp-on .fp-text::after {
+    content: ' ✓';
+    font-weight: 800;
+}
+
 /* Inert grid spacer (matches a blank/pred or leftover key cell). */
 .fp-cell-blank { min-width: 0; }
 
@@ -646,6 +672,26 @@ body.conv-bottom .fp-btn { min-height: clamp(2.2rem, 7.5vh, 4rem); }
     color: #fff;
     outline: none;
 }
+
+/* --- Fast-phrase editor (Settings → Phrases): an ordered list of typed items. --- */
+#phraseEditor { display: flex; flex-direction: column; gap: 0.5rem; }
+.pe-toolbar { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.pe-toolbar .pe-add { background: #2c3e50; color: #fff; border: none; border-radius: 6px; padding: 0.4rem 0.7rem; font-weight: 600; cursor: pointer; }
+.pe-toolbar .pe-add:hover { filter: brightness(1.1); }
+.pe-toolbar .pe-reset { margin-left: auto; background: #fff; color: #c0392b; border: 1px solid #e0a4a0; border-radius: 6px; padding: 0.4rem 0.7rem; cursor: pointer; }
+.pe-toolbar .pe-reset:hover { background: #c0392b; color: #fff; }
+.pe-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.pe-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem; border: 1px solid #d6dde2; border-radius: 8px; background: #fff; }
+.pe-badge { flex: 0 0 auto; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #fff; border-radius: 4px; padding: 0.25rem 0.4rem; min-width: 4.2rem; text-align: center; }
+.pe-badge-phrase  { background: #546E7A; }
+.pe-badge-partner { background: #5D4037; }
+.pe-badge-feeling { background: #00838F; }
+.pe-fields { display: flex; flex: 1 1 auto; gap: 0.4rem; flex-wrap: wrap; min-width: 0; }
+.pe-fields input, .pe-fields select { flex: 1 1 8rem; min-width: 0; padding: 0.35rem 0.5rem; border: 1px solid #c4ccd2; border-radius: 6px; font-size: 0.95rem; }
+.pe-tools { flex: 0 0 auto; display: flex; gap: 0.25rem; }
+.pe-tools button { width: 2rem; height: 2rem; border: 1px solid #c4ccd2; background: #f4f6f8; border-radius: 6px; cursor: pointer; font-size: 1rem; line-height: 1; }
+.pe-tools button:disabled { opacity: 0.35; cursor: default; }
+.pe-tools .pe-del { color: #c0392b; border-color: #e0a4a0; }
 
 /* Engine diagnostics — collapsed <details> for development / bug reports. The
    user-facing inference is the mode chip in Region A. */

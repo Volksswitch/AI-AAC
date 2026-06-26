@@ -60,10 +60,12 @@ const SLOT_PRIORITY = {
 
 // Static Phase-1 palettes for the modes that don't need an LLM round-trip.
 // Per the Configuration Model these become user-owned lists later; inline for now.
+// Openers carry a plain form and a name-personalized form. When a Partner toggle
+// is active, initiate(partnerName) uses the named form ("Hi Tim, got a minute?").
 const OPENERS = [
-    'Hey, got a minute?',
-    'Can I ask you something?',
-    'Guess what.',
+    { plain: 'Hey, got a minute?',      named: (n) => `Hi ${n}, got a minute?` },
+    { plain: 'Can I ask you something?', named: (n) => `Can I ask you something, ${n}?` },
+    { plain: 'Guess what.',             named: (n) => `Guess what, ${n}.` },
 ];
 const CLOSERS = [
     'I should get going.',
@@ -267,10 +269,12 @@ function repairSelfPalette() {
     ];
 }
 
-function openerPalette() {
-    return OPENERS.map((text, i) => ({
-        slot: SLOT.OPENER, text, hint: text, priority: i + 1, latency: 'instant',
-    }));
+function openerPalette(partnerName = '') {
+    const n = (partnerName || '').trim();
+    return OPENERS.map((o, i) => {
+        const text = n ? o.named(n) : o.plain;
+        return { slot: SLOT.OPENER, text, hint: text, priority: i + 1, latency: 'instant' };
+    });
 }
 
 function closingPalette() {
@@ -360,10 +364,11 @@ export function windDown() {
 }
 
 // Initiate — user opens the conversation; surface pre-sequences / openers (§5.2).
-export function initiate() {
+// `opts.partnerName` (from an active Partner toggle) personalizes the openers.
+export function initiate(opts = {}) {
     state.phase = 'OPENING';
     state.mode = MODE.INITIATING;
     state.floor = FLOOR.SELF; // the user is taking the floor to open
-    state.palette = openerPalette();
+    state.palette = openerPalette(opts.partnerName || '');
     return getSnapshot();
 }

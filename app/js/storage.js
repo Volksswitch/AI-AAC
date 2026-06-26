@@ -1,3 +1,5 @@
+import { DEFAULT_ITEMS, ensureIds } from './fast-phrases.js';
+
 const STORAGE_KEY = 'aac_settings';
 const IDB_NAME = 'aac-db';
 const IDB_STORE = 'handles';
@@ -257,6 +259,29 @@ export function loadDoubleTapMs() {
 export function saveDoubleTapMs(ms) {
     const settings = loadSettings();
     settings.doubleTapMs = Number(ms) || 400;
+    saveSettings(settings);
+}
+
+// The editable, ordered typed-item list backing the fast-phrase panel (phrase /
+// partner / feeling items — see fast-phrases.js). Stored in localStorage; falls
+// back to the provided starting layout until the user edits it. Ids are ensured
+// on load so the panel can track which influencer is toggled on.
+// (Future: move to the data folder for cross-device portability, like worldview.)
+export function loadFastItems() {
+    const stored = loadSettings().fastItems;
+    const list = Array.isArray(stored) && stored.length ? stored : DEFAULT_ITEMS;
+    return ensureIds(list).map((x) => ({ ...x }));
+}
+
+export function saveFastItems(items) {
+    const settings = loadSettings();
+    settings.fastItems = ensureIds(Array.isArray(items) ? items : []);
+    saveSettings(settings);
+}
+
+export function resetFastItems() {
+    const settings = loadSettings();
+    delete settings.fastItems;
     saveSettings(settings);
 }
 
