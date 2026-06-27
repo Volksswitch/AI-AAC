@@ -293,7 +293,12 @@ export async function startConversationLog() {
     return currentLogName;
 }
 
-export async function logPartnerSpeech({ rawTranscript, cleanedTranscript }) {
+// `partner`/`feeling` are the situation stamp — the active Partner / Feeling
+// toggles at the moment of the turn (Ken, June 2026). Each is null when no toggle
+// is active. `partner` = { id: personId|null, label }; `feeling` = { id, text }.
+// Stamped on every turn so a Phase-3 review can see who the user was talking to
+// and how they felt for each exchange, even as those change mid-conversation.
+export async function logPartnerSpeech({ rawTranscript, cleanedTranscript, partner = null }) {
     if (!currentLogData) await startConversationLog();
     if (!currentLogData) return;
 
@@ -301,12 +306,13 @@ export async function logPartnerSpeech({ rawTranscript, cleanedTranscript }) {
         timestamp: new Date().toISOString(),
         role: 'partner',
         rawTranscript,
-        cleanedTranscript
+        cleanedTranscript,
+        partner            // who spoke (the active Partner), or null
     });
     await flushLog();
 }
 
-export async function logUserResponse({ selectedText, selectedIndex, allOptions }) {
+export async function logUserResponse({ selectedText, selectedIndex, allOptions, partner = null, feeling = null }) {
     if (!currentLogData) return;
 
     currentLogData.exchanges.push({
@@ -314,7 +320,9 @@ export async function logUserResponse({ selectedText, selectedIndex, allOptions 
         role: 'user',
         selectedText,
         selectedIndex,
-        allOptions
+        allOptions,
+        partner,           // who the user was talking with, or null
+        feeling            // how the user felt at this turn, or null
     });
     await flushLog();
 }

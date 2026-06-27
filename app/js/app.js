@@ -18,7 +18,7 @@ import * as expressEditor from './express-editor.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.5.29';
+const APP_VERSION = '0.5.30';
 
 const conversationHistory = [];
 let isListening = false;
@@ -407,7 +407,11 @@ async function commitExchange(raw, userText, index) {
             cleaned = await llm.cleanupTranscript(raw, conversationHistory);
         } catch { /* fall back to raw */ }
         conversationHistory.push({ role: 'partner', text: cleaned });
-        storage.logPartnerSpeech({ rawTranscript: raw, cleanedTranscript: cleaned });
+        storage.logPartnerSpeech({
+            rawTranscript: raw,
+            cleanedTranscript: cleaned,
+            partner: partnerStamp(),   // who spoke (the active Partner), or null
+        });
     }
     conversationHistory.push({ role: 'user', text: userText });
     storage.logUserResponse({
@@ -417,6 +421,9 @@ async function commitExchange(raw, userText, index) {
         // list; a free-composed utterance (index -1) was not picked from a
         // palette, so don't log the (possibly stale) last palette against it.
         allOptions: index >= 0 ? lastPalette.map(m => m.text).filter(Boolean) : [],
+        // Stamp the situation at this turn (who, how the user felt) — null when off.
+        partner: partnerStamp(),
+        feeling: feelingStamp(),
     });
     // Render the running transcript and clear the in-progress (live) partner turn.
     ui.renderConversation(conversationHistory);
@@ -717,6 +724,24 @@ function buildSituationBlock() {
         lines.push(`The user is currently feeling ${activeFeeling.text.toLowerCase()}. Let this color the tone of the suggested responses, while keeping them authentic to the user.`);
     }
     return lines.join(' ');
+}
+
+// Situation STAMP for the conversation log (distinct from the generation block
+// above): a compact snapshot of the active influencers at the moment of a turn,
+// written onto every logged turn for Phase-3 review. `partner` keeps the stable
+// personId (when the Partner is a known person) so the log can join back to the
+// relationship graph, plus the display label; `feeling` keeps id + text. Each is
+// null when its toggle is off.
+function partnerStamp() {
+    if (!activePartner) return null;
+    return {
+        id: activePartner.personId || null,
+        label: (activePartner.nickname || activePartner.name || '').trim(),
+    };
+}
+function feelingStamp() {
+    if (!activeFeeling || !activeFeeling.text) return null;
+    return { id: activeFeeling.id || null, text: activeFeeling.text };
 }
 
 // Partner toggle: one active at a time. Tapping the active one turns it off;
