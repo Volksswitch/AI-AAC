@@ -204,16 +204,17 @@ function buildRow(item, i) {
         // mean nothing to the user (Ken) — so pick by COLOR, not by category name.
         fields.appendChild(colorControl(item));
     } else if (item.type === 'partner') {
-        // Pick from People I Know, or type a name (Custom).
+        // Pick from People I Know. The button in the panel shows their nickname if
+        // set, their name if not. Name and nickname come entirely from the selection.
         const sel = document.createElement('select');
         sel.className = 'ee-name-select';
         const customOpt = document.createElement('option');
-        customOpt.value = ''; customOpt.textContent = '— Choose a name —';
+        customOpt.value = ''; customOpt.textContent = '— Choose a person —';
         sel.appendChild(customOpt);
         relationships.listPeople().forEach((p) => {
             const o = document.createElement('option');
             o.value = p.id;
-            o.textContent = p.name + (p.relationship ? ` (${p.relationship})` : '');
+            o.textContent = p.name + (p.nickname ? ` (${p.nickname})` : '');
             if (p.id === item.personId) o.selected = true;
             sel.appendChild(o);
         });
@@ -225,12 +226,12 @@ function buildRow(item, i) {
                 item.nickname = p.nickname || '';
             } else {
                 delete item.personId;
+                item.name = '';
+                item.nickname = '';
             }
-            commit(true); // refresh the name/nickname fields below
+            commit(false);
         });
         fields.appendChild(sel);
-        fields.appendChild(textInput(item.name, 'Name', (v) => { item.name = v; commit(false); }));
-        fields.appendChild(textInput(item.nickname, 'What I call them (optional)', (v) => { item.nickname = v; commit(false); }));
         fields.appendChild(colorControl(item)); // fixed color for this type, shown
     } else { // feeling
         const inp = textInput(item.text, 'Feeling (e.g. Happy)', (v) => { item.text = v; commit(false); });
