@@ -58,21 +58,51 @@ const SLOT_PRIORITY = {
     OPENER: 1, CLOSING: 1,
 };
 
-// Static Phase-1 palettes for the modes that don't need an LLM round-trip.
-// Per the Configuration Model these become user-owned lists later; inline for now.
-// Openers carry a plain form and a name-personalized form. When a Partner toggle
-// is active, initiate(partnerName) uses the named form ("Hi Tim, got a minute?").
-const OPENERS = [
-    { plain: 'Hey, got a minute?',      named: (n) => `Hi ${n}, got a minute?` },
-    { plain: 'Can I ask you something?', named: (n) => `Can I ask you something, ${n}?` },
-    { plain: 'Guess what.',             named: (n) => `Guess what, ${n}.` },
+// Static Phase-1 palettes for the modes that don't need an LLM round-trip. These
+// are user-owned lists now (control-phrases.js); app.js injects the edited set via
+// setConversationPhrases(). The inline defaults below mirror control-phrases.js
+// DEFAULTS so the engine still works standalone (tests) before any injection.
+// Openers are templates: {name} is replaced with the active Partner's name and
+// dropped (with tidy punctuation) when no Partner is active — see applyName.
+const DEFAULT_OPENERS = [
+    'Hi {name}, got a minute?',
+    'Can I ask you something, {name}?',
+    'Guess what, {name}.',
 ];
-const CLOSERS = [
+const DEFAULT_CLOSERS = [
     'I should get going.',
     'This was really nice, thanks.',
     'Great seeing you.',
     'Bye!',
 ];
+let openers = DEFAULT_OPENERS.slice();
+let closers = DEFAULT_CLOSERS.slice();
+
+// Replace {name} with the active Partner's name; when there is no name, drop the
+// token AND an adjacent comma, repairing spacing/punctuation so the opener still
+// reads cleanly ("Hi {name}, got a minute?" → "Hi, got a minute?").
+function applyName(template, name) {
+    const n = (name || '').trim();
+    if (n) return template.replace(/\{name\}/g, n).replace(/\s+/g, ' ').trim();
+    return template
+        .replace(/\s*,?\s*\{name\}\s*,?\s*/g, (m, offset, str) => {
+            const before = str.slice(0, offset).trimEnd();
+            const after = str.slice(offset + m.length).trimStart();
+            // Name sat between two words → keep a comma; otherwise just close the gap.
+            if (before && after && /[A-Za-z0-9]$/.test(before) && /^[A-Za-z0-9]/.test(after)) return ', ';
+            return after && !/^[?.!,;:]/.test(after) ? ' ' : '';
+        })
+        .replace(/\s+([?.!,;:])/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// Inject the user's edited openers/closers (control-phrases.js). Empty/missing
+// lists are ignored so the engine never ends up with no opener or closer cards.
+export function setConversationPhrases(p = {}) {
+    if (Array.isArray(p.openers) && p.openers.length) openers = p.openers.slice();
+    if (Array.isArray(p.closers) && p.closers.length) closers = p.closers.slice();
+}
 
 // --- ConversationState (design §3) ---
 const state = {
@@ -270,15 +300,14 @@ function repairSelfPalette() {
 }
 
 function openerPalette(partnerName = '') {
-    const n = (partnerName || '').trim();
-    return OPENERS.map((o, i) => {
-        const text = n ? o.named(n) : o.plain;
+    return openers.map((tpl, i) => {
+        const text = applyName(tpl, partnerName);
         return { slot: SLOT.OPENER, text, hint: text, priority: i + 1, latency: 'instant' };
     });
 }
 
 function closingPalette() {
-    return CLOSERS.map((text, i) => ({
+    return closers.map((text, i) => ({
         slot: SLOT.CLOSING, text, hint: text, priority: i + 1, latency: 'instant',
     }));
 }

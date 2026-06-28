@@ -14,11 +14,13 @@ import * as viewport from './viewport.js';
 import * as expressItems from './express-items.js';
 import * as expressPanel from './express-panel.js';
 import * as expressEditor from './express-editor.js';
+import * as controlPhrases from './control-phrases.js';
+import * as controlEditor from './control-phrases-editor.js';
 
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.5.32';
+const APP_VERSION = '0.5.33';
 
 const conversationHistory = [];
 let isListening = false;
@@ -101,6 +103,7 @@ function initApp() {
     ui.clearResponseOptions(); // render the reserved empty card footprint at rest
     renderExpressPanel();
     expressEditor.init(document.getElementById('expressEditor'), { onChange: renderExpressPanel });
+    controlEditor.init(document.getElementById('controlEditor'), { onChange: applyControlPhrases });
     worldviewUI.init();
     keyboard.init();
     keyboard.setMode(storage.loadKeyboardMode());
@@ -147,6 +150,8 @@ function initApp() {
     // Express Panel items — its own model + file. Loaded from cache now; the
     // folder copy (source of truth) is adopted in handleStart once granted.
     expressPanel.load().then(renderExpressPanel).catch(() => { /* falls back to defaults */ });
+    // Control phrases (Hold on / Pardon? / openers / closers) — own model + file.
+    controlPhrases.load().then(applyControlPhrases).catch(() => { /* engine keeps inline defaults */ });
 
     const savedKey = storage.loadApiKey();
     if (savedKey) {
@@ -217,6 +222,10 @@ async function handleStart() {
     try { await expressPanel.load(); } catch { /* keep cached/default items */ }
     try { await expressPanel.syncToFolder(); } catch { /* best-effort */ }
     renderExpressPanel(); // reflect any adopted items
+    // Same for the control phrases (Hold on / Pardon? / openers / closers).
+    try { await controlPhrases.load(); } catch { /* keep cached/default phrases */ }
+    try { await controlPhrases.syncToFolder(); } catch { /* best-effort */ }
+    applyControlPhrases();
     // Fresh conversation state for this session.
     engine.reset();
     ui.showEngineState(engine.getSnapshot());
@@ -478,6 +487,18 @@ function handleInitiate() {
     ui.setStatus('Pick an opener');
 }
 
+// Push the user's edited openers/closers into the engine (Hold on / Pardon? are
+// read straight from the model at tap time). Called after load/sync and on every
+// edit via the editor's onChange.
+function applyControlPhrases() {
+    const p = controlPhrases.getPhrases();
+    // Drop blank rows (the editor allows a transient empty row) so no empty card
+    // reaches the palette; setConversationPhrases ignores a fully-empty list and
+    // keeps the defaults.
+    const clean = (a) => a.map((s) => s.trim()).filter(Boolean);
+    engine.setConversationPhrases({ openers: clean(p.openers), closers: clean(p.closers) });
+}
+
 // Say again — re-speak the user's last utterance verbatim. Instant, no LLM.
 async function handleSayAgain() {
     const text = engine.getLastUserUtterance();
@@ -492,11 +513,11 @@ async function handleSayAgain() {
 async function handleHoldOn() {
     placeholders.stop();
     ui.setStatus('Speaking...');
-    // Softened from "Hold on, let me think." — imperative phrasing reads as curt
-    // through the flat built-in voices (Ken, June 18 2026). The leading "Hmm,"
-    // (v0.3.14) was dropped (Ken, June 19 2026) — the built-in voices render it
-    // unintelligibly, so it read as garble rather than a thinking beat.
-    await tts.speak('Let me think about that.');
+    // User-editable (Settings → Controls). The default is softened from "Hold on,
+    // let me think." — imperative phrasing reads as curt through the flat built-in
+    // voices (Ken, June 18 2026), and the leading "Hmm," (v0.3.14) was dropped
+    // (June 19 2026) as the built-in voices render it unintelligibly.
+    await tts.speak(controlPhrases.getPhrases().holdOn);
     ui.setStatus(isListening ? 'Listening...' : 'Ready');
 }
 
@@ -525,7 +546,7 @@ async function handlePardon() {
     ui.setTranscriptState('idle');
     ui.clearResponseOptions();
     ui.setStatus('Speaking...');
-    await tts.speak("Sorry, I didn't catch that. Could you say it again?");
+    await tts.speak(controlPhrases.getPhrases().pardon); // user-editable (Settings → Controls)
     ui.setStatus(isListening ? 'Listening...' : 'Ready');
 }
 
@@ -819,6 +840,7 @@ function initSettingsTabs() {
 // CHOSEN dock. Any other tab takes the preview down.
 function handleSettingsTab(tabName) {
     if (tabName === 'express') { expressEditor.render(); keyboard.previewHide(); return; }
+    if (tabName === 'controls') { controlEditor.render(); keyboard.previewHide(); return; }
     if (tabName === 'speech' && storage.loadKeyboardMode() === 'onscreen') {
         keyboard.previewShow(storage.loadKeyboardDock());
     } else {
@@ -973,6 +995,8 @@ function openSettings() {
             try { await relationships.syncToFolder(); } catch { /* best-effort */ }
             try { await expressPanel.syncToFolder(); } catch { /* best-effort */ }
             renderExpressPanel();
+            try { await controlPhrases.syncToFolder(); } catch { /* best-effort */ }
+            applyControlPhrases();
             updateFolderDisplay();
         } catch (err) {
             if (err.name !== 'AbortError') {

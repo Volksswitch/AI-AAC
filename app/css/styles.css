@@ -752,6 +752,19 @@ body.conv-bottom .ep-btn { min-height: clamp(2.2rem, 7.5vh, 4rem); }
 .ee-insertbar .ee-add { background: #2c3e50; color: #fff; border: none; border-radius: 6px; padding: 0.35rem 0.7rem; font-weight: 600; cursor: pointer; }
 .ee-insertbar-cancel { margin-left: auto; width: 1.9rem; height: 1.9rem; border: 1px solid #c4ccd2; background: #fff; border-radius: 6px; color: #c0392b; cursor: pointer; }
 
+/* Control-phrases editor (Settings → Controls). Reuses .ee-row/.ee-list/.ee-tools;
+   adds section grouping and grows the bare text input (it isn't wrapped in
+   .ee-fields). */
+.cpe-section { margin-bottom: 1.1rem; }
+.cpe-section > label { display: block; font-weight: 600; margin-bottom: 0.2rem; }
+.cpe-section .ee-row { margin-top: 0.35rem; }
+.cpe-section .ee-row > input { flex: 1 1 auto; min-width: 0; padding: 0.4rem 0.5rem; border: 1px solid #c4ccd2; border-radius: 6px; font-size: 0.95rem; }
+.cpe-note { font-style: italic; margin: 0.75rem 0; }
+#controlEditor .ee-add { margin-top: 0.45rem; background: #2c3e50; color: #fff; border: none; border-radius: 6px; padding: 0.4rem 0.7rem; font-weight: 600; cursor: pointer; }
+#controlEditor .ee-add:hover { filter: brightness(1.1); }
+#controlEditor .ee-reset { display: inline-block; margin-top: 0.5rem; background: #fff; color: #c0392b; border: 1px solid #e0a4a0; border-radius: 6px; padding: 0.45rem 0.8rem; cursor: pointer; }
+#controlEditor .ee-reset:hover { background: #c0392b; color: #fff; }
+
 /* Engine diagnostics — collapsed <details> for development / bug reports. The
    user-facing inference is the mode chip in Region A. */
 #engineDetails {

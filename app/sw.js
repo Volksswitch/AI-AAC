@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION whenever the precached shell changes so old caches are
  * cleaned out on activate.
  */
-const CACHE_VERSION = 'aac-v0.5.32';
+const CACHE_VERSION = 'aac-v0.5.33';
 const CACHE_NAME = `aac-shell-${CACHE_VERSION}`;
 
 // App shell precached on install so the app can cold-start offline.
@@ -37,6 +37,8 @@ const SHELL = [
   './js/express-items.js',
   './js/express-panel.js',
   './js/express-editor.js',
+  './js/control-phrases.js',
+  './js/control-phrases-editor.js',
   './js/icons.js',
   './js/prediction.js',
   './data/placeholders.json',
