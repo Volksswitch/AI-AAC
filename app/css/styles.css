@@ -613,6 +613,9 @@ body.conv-bottom .palette-grid {
     --ep-color: #546E7A;
     --ep-tint: #eceff1;
     min-width: 0;
+    /* Like the keyboard keys (.kbd-key): the row stretch drives the height, so
+       the button shrinks to fit the dock and never overflows / falls off. */
+    min-height: 0;
     padding: 0.2rem 0.4rem;
     border: 1px solid var(--ep-color);
     border-left: 5px solid var(--ep-color);
@@ -627,7 +630,6 @@ body.conv-bottom .palette-grid {
     align-items: center;
     justify-content: center;
 }
-body.conv-bottom .ep-btn { min-height: clamp(2.2rem, 7.5vh, 4rem); }
 /* Word-wrap the phrase onto multiple lines (less need for ellipsis); clamp to
    3 lines with an ellipsis fallback only for the very longest. */
 .ep-text {
@@ -710,9 +712,12 @@ body.conv-bottom .ep-btn { min-height: clamp(2.2rem, 7.5vh, 4rem); }
    controls. They are all at least --btn-min-dim tall (the critical tap
    dimension); icon-only buttons are also at least that wide (square-ish targets).
    EXCEPTION: the on-screen-keyboard keys (.kbd-key / .kbd-tool / .kbd-pred-btn)
-   are sized BY the dock band — which is itself derived from --btn-min-dim — so a
-   hard min there would overflow the fixed dock; they scale through the dock. */
-button:not(.kbd-key):not(.kbd-tool):not(.kbd-pred-btn) {
+   AND the Express Panel buttons (.ep-btn) are sized BY the dock band — which is
+   itself derived from --btn-min-dim — so a hard min there would overflow the
+   fixed dock and push buttons off the panel; they scale through the dock instead.
+   (The Express Panel maps 1:1 onto the keyboard, so its buttons must fit exactly
+   like the keys and never fall off — Ken, June 29 2026.) */
+button:not(.kbd-key):not(.kbd-tool):not(.kbd-pred-btn):not(.ep-btn) {
     min-height: var(--btn-min-dim);
 }
 .icon-btn { min-width: var(--btn-min-dim); }
