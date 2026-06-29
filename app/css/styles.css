@@ -59,32 +59,33 @@
        Overlays reserve this region (leaving it blank at rest) and put their
        content in the MAIN AREA; the keyboard fills the dock when typing. These
        two values are the single source of truth for the dock size everywhere.
-       --- They GROW with the "Minimum button size" setting (Ken, June 29 2026):
-       the dock must be big enough that every key / Express cell clears
-       --btn-min-dim. JS sets --kbd-rows / --kbd-cols for the active layout; the
-       bottom dock then needs rows×dim of HEIGHT and the side dock needs cols×dim
-       of WIDTH (+ inter-cell gaps + the panel's own padding). Each is max(floor,
-       need) so it only grows when the buttons demand it, and capped (min(cap, …))
-       so the main area / transcript keeps a usable minimum on small screens —
-       buttons win the squeeze, but not to the point of erasing everything else. */
+       --- The dock is sized DIRECTLY from the button size + gap (Ken, June 29
+       2026 — revised): button size is AUTHORITATIVE and sets the actual button
+       dimension, so the dock's scarce axis = count × --btn-min-dim + gaps + pad
+       (NO floor that would mask the setting). Raising either the button size OR
+       the gap therefore grows the dock along its expandable axis — the side dock
+       WIDENS (cols), the bottom dock grows TALLER (rows) — shrinking the
+       neighbour (Settings panel / transcript), and the buttons keep their set
+       size (the gap expands the dock, it never steals from the buttons). Capped
+       (min(cap, …)) so it can't erase the main area on a small screen. */
     --grid-gap: 0.4rem;           /* gap between dock cells (matches .ep-row / .kbd-row) */
     --dock-pad: 1rem;             /* the dock panel's own padding on the scarce axis (0.5+0.5) */
     --kbd-rows: 7;                /* rows in the active layout — JS overrides per layout */
     --kbd-cols: 5;                /* widest row's total span — JS overrides per layout */
-    --dock-w: min(70vw, max(min(26rem, 46vw),
+    --dock-w: min(70vw,
                   calc(var(--kbd-cols) * var(--btn-min-dim)
-                       + (var(--kbd-cols) - 1) * var(--grid-gap) + var(--dock-pad))));
-    --dock-h: min(72vh, max(48vh,
+                       + (var(--kbd-cols) - 1) * var(--grid-gap) + var(--dock-pad)));
+    --dock-h: min(72vh,
                   calc(var(--kbd-rows) * var(--btn-min-dim)
-                       + (var(--kbd-rows) - 1) * var(--grid-gap) + var(--dock-pad))));
+                       + (var(--kbd-rows) - 1) * var(--grid-gap) + var(--dock-pad)));
 
-    /* --- Minimum button dimension (Ken, June 27 2026). The smallest height (and
-       width floor) any control button may take. The user-facing "Minimum button
-       size" slider (Settings → Speech & Input) drives this one token: control
-       buttons floor their min-height/width to it, the Command Bar buttons wrap as
-       it grows, and the dock (above) grows so keys/Express cells clear it too.
+    /* --- Button size (Ken, June 27 2026; "Button size" slider, Settings →
+       Speech & Input). The ACTUAL dimension of a button along the dock's
+       expandable axis (key width in a side dock, key height in a bottom dock).
+       Control buttons (Command Bar, composer, persist) size to it; the dock
+       (above) is sized FROM it so keys/Express cells render exactly this size.
        Wire new control buttons to this token rather than a bare rem value. */
-    --btn-min-dim: 2.75rem;
+    --btn-min-dim: 4rem;
 
     /* Inline word-prediction ghost (Ken, June 29 2026). Bold + a subtle tint
        mark the completion as provisional WITHOUT relying on low contrast, so it
@@ -344,7 +345,7 @@ body.conv-bottom .ep-row { flex: 1 1 0; }
     flex: 0 0 auto;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--grid-gap);    /* Command Bar button spacing tracks the gap setting */
 }
 #listenControls > button {
     flex: 1 1 0;

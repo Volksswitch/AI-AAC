@@ -265,8 +265,8 @@ export function saveDoubleTapMs(ms) {
 // app maps each to a CSS dimension (see app.js applyButtonSizing); the user picks
 // by visual "feel". Both feed the keyguard (target size + bar width), so they're
 // Setup-tier, supporter-assisted. Defaults reproduce the historical look.
-const DEFAULT_BTN_SIZE_POS = 22;   // → --btn-min-dim ≈2.75rem (unchanged default)
-const DEFAULT_BTN_GAP_POS = 20;    // → --grid-gap 0.4rem (unchanged default)
+const DEFAULT_BTN_SIZE_POS = 33;   // → --btn-min-dim ≈4rem (see app.js SIZE_*_REM)
+const DEFAULT_BTN_GAP_POS = 20;    // → --grid-gap 0.4rem
 
 function clampPos(v, dflt) {
     const n = Number(v);
