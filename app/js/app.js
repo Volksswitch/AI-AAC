@@ -20,7 +20,7 @@ import * as controlEditor from './control-phrases-editor.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.5.40';
+const APP_VERSION = '0.5.41';
 
 const conversationHistory = [];
 let isListening = false;
@@ -101,6 +101,7 @@ function initApp() {
     ui.showEngineState(engine.getSnapshot());
     ui.applyControlIcons();
     applyConversationDockClasses();
+    applyButtonSizing();   // set --btn-min-dim / --grid-gap / --kbd-rows / --kbd-cols
     ui.clearResponseOptions(); // render the reserved empty card footprint at rest
     renderExpressPanel();
     expressEditor.init(document.getElementById('expressEditor'), { onChange: renderExpressPanel });
@@ -735,6 +736,7 @@ function expressLayoutRows() {
 }
 
 function renderExpressPanel() {
+    applyButtonSizing();   // the active layout may have changed → refresh --kbd-rows/--kbd-cols
     // The user-editable, ordered typed-item list (phrase / partner / feeling).
     ui.renderExpressPanel(expressLayoutRows(), expressPanel.getItems(), {
         categories: expressItems.CATEGORIES,
@@ -812,6 +814,38 @@ function applyConversationDockClasses() {
     document.body.classList.toggle('conv-side', side);
     document.body.classList.toggle('conv-side-right', side && right);
     document.body.classList.toggle('conv-side-left', side && !right);
+}
+
+// --- Button sizing (Ken, June 29 2026): two unitless sliders drive the minimum
+// button size (--btn-min-dim) and the inter-button gap (--grid-gap). The gap is
+// also the keyguard's bar width, so it's a first-class knob. Slider positions
+// (0–100) map to rem so the user picks by feel; the dock grows from the active
+// layout's rows/cols × these tokens (the max()/calc() lives in styles.css), so
+// keys/Express cells always clear the minimum. ---
+const SIZE_MIN_REM = 2.25, SIZE_MAX_REM = 4.5;   // --btn-min-dim range
+const GAP_MIN_REM = 0.15, GAP_MAX_REM = 1.4;     // --grid-gap range
+const lerp = (pos, lo, hi) => lo + (Math.max(0, Math.min(100, pos)) / 100) * (hi - lo);
+
+// Count the rows + widest total span of the active dock layout, so the CSS dock
+// formula can reserve rows×dim (bottom) / cols×dim (side) of space.
+function activeLayoutGrid() {
+    const rows = expressLayoutRows();
+    const r = rows.length || 1;
+    let c = 1;
+    for (const row of rows) {
+        const span = row.reduce((sum, cell) => sum + (cell.span || 1), 0);
+        if (span > c) c = span;
+    }
+    return { rows: r, cols: c };
+}
+
+function applyButtonSizing() {
+    const root = document.documentElement.style;
+    root.setProperty('--btn-min-dim', `${lerp(storage.loadButtonSizePos(), SIZE_MIN_REM, SIZE_MAX_REM).toFixed(3)}rem`);
+    root.setProperty('--grid-gap', `${lerp(storage.loadButtonGapPos(), GAP_MIN_REM, GAP_MAX_REM).toFixed(3)}rem`);
+    const { rows, cols } = activeLayoutGrid();
+    root.setProperty('--kbd-rows', String(rows));
+    root.setProperty('--kbd-cols', String(cols));
 }
 
 // An Express Panel phrase was activated (single tap, or confirmed double tap). It
@@ -980,6 +1014,11 @@ function openSettings() {
     const tapRadio = document.querySelector(`input[name="expressTapMode"][value="${tapMode}"]`);
     if (tapRadio) tapRadio.checked = true;
     doubleTapMsSelect.value = storage.loadDoubleTapMs();
+    // Button sizing sliders (unitless 0–100).
+    const buttonSizeSlider = document.getElementById('buttonSizeSlider');
+    const buttonGapSlider = document.getElementById('buttonGapSlider');
+    buttonSizeSlider.value = storage.loadButtonSizePos();
+    buttonGapSlider.value = storage.loadButtonGapPos();
     updateFolderDisplay();
 
     // Reset to General tab
@@ -1125,6 +1164,19 @@ function openSettings() {
     doubleTapMsSelect.onchange = () => {
         storage.saveDoubleTapMs(Number(doubleTapMsSelect.value));
         renderExpressPanel();
+    };
+
+    // Button sizing — apply live as the slider drags (oninput) so the change is
+    // visible immediately (incl. the keyboard preview on this tab), persisting as
+    // it goes. applyButtonSizing() re-derives --btn-min-dim / --grid-gap and the
+    // dock grows/shrinks accordingly.
+    buttonSizeSlider.oninput = () => {
+        storage.saveButtonSizePos(Number(buttonSizeSlider.value));
+        applyButtonSizing();
+    };
+    buttonGapSlider.oninput = () => {
+        storage.saveButtonGapPos(Number(buttonGapSlider.value));
+        applyButtonSizing();
     };
 
     document.getElementById('closeSettingsBtn').onclick = () => {

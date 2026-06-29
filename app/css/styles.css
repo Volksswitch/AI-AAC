@@ -58,18 +58,31 @@
        column on the chosen edge) and BOTTOM (a fixed-height full-width strip).
        Overlays reserve this region (leaving it blank at rest) and put their
        content in the MAIN AREA; the keyboard fills the dock when typing. These
-       two values are the single source of truth for the dock size everywhere. */
-    --dock-w: min(26rem, 46vw);   /* side dock width  */
-    --dock-h: 48vh;               /* bottom dock height (fixed, so the Express
-                                     Panel and the keyboard occupy the same band) */
+       two values are the single source of truth for the dock size everywhere.
+       --- They GROW with the "Minimum button size" setting (Ken, June 29 2026):
+       the dock must be big enough that every key / Express cell clears
+       --btn-min-dim. JS sets --kbd-rows / --kbd-cols for the active layout; the
+       bottom dock then needs rows×dim of HEIGHT and the side dock needs cols×dim
+       of WIDTH (+ inter-cell gaps + the panel's own padding). Each is max(floor,
+       need) so it only grows when the buttons demand it, and capped (min(cap, …))
+       so the main area / transcript keeps a usable minimum on small screens —
+       buttons win the squeeze, but not to the point of erasing everything else. */
+    --grid-gap: 0.4rem;           /* gap between dock cells (matches .ep-row / .kbd-row) */
+    --dock-pad: 1rem;             /* the dock panel's own padding on the scarce axis (0.5+0.5) */
+    --kbd-rows: 7;                /* rows in the active layout — JS overrides per layout */
+    --kbd-cols: 5;                /* widest row's total span — JS overrides per layout */
+    --dock-w: min(70vw, max(min(26rem, 46vw),
+                  calc(var(--kbd-cols) * var(--btn-min-dim)
+                       + (var(--kbd-cols) - 1) * var(--grid-gap) + var(--dock-pad))));
+    --dock-h: min(72vh, max(48vh,
+                  calc(var(--kbd-rows) * var(--btn-min-dim)
+                       + (var(--kbd-rows) - 1) * var(--grid-gap) + var(--dock-pad))));
 
     /* --- Minimum button dimension (Ken, June 27 2026). The smallest height (and
-       width floor) any control button may take. It is the single knob a future
-       Settings control will raise so a user with limited motor control can demand
-       larger targets fleet-wide. Right now its first job is ALIGNMENT: the Express
-       Panel's control row (#epControls) and the keyboard's toolbar (.kbd-toolbar)
-       are both pinned to exactly this height, so the grids beneath them start at
-       the same y and the two dock layouts overlay hole-for-hole (one keyguard).
+       width floor) any control button may take. The user-facing "Minimum button
+       size" slider (Settings → Speech & Input) drives this one token: control
+       buttons floor their min-height/width to it, the Command Bar buttons wrap as
+       it grows, and the dock (above) grows so keys/Express cells clear it too.
        Wire new control buttons to this token rather than a bare rem value. */
     --btn-min-dim: 2.75rem;
 }
@@ -185,19 +198,19 @@ body.conv-bottom #dockArea { width: 100%; height: var(--dock-h); flex: 0 0 var(-
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: var(--grid-gap);
     padding: 0.5rem;
 }
 #epGrid {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: var(--grid-gap);   /* between rows — also the keyguard bar width (settable) */
     min-height: 0;
 }
 .ep-row {
     display: flex;
-    gap: 0.4rem;
+    gap: var(--grid-gap);   /* between cells — the keyguard bar width (settable) */
 }
 /* Rows stretch to fill the dock in BOTH layouts (the dock is a fixed size each
    way), so the Express Panel exactly fills the dock region the keyboard occupies. */
@@ -256,7 +269,10 @@ body.conv-bottom .ep-row { flex: 1 1 0; }
 }
 .transcript-log {
     flex: 1 1 auto;
-    min-height: 0;
+    /* The transcript yields its space (height in bottom dock, width in side dock)
+       when larger buttons grow the dock — but keep a small floor so it never
+       collapses to nothing (Ken: buttons win the squeeze, transcript shrinks). */
+    min-height: 3rem;
     overflow-y: auto;
     background: transparent;     /* not an input — no light card background */
     border: 1px solid #b7c0c8;   /* delineate the conversation box */
@@ -1174,6 +1190,15 @@ dialog select {
     color: #444;
 }
 
+/* Range sliders (Minimum button size / Button spacing) fill the row between
+   their Smaller/Larger end labels. */
+.size-slider {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    cursor: pointer;
+}
+
 .switch {
     position: relative;
     display: inline-block;
@@ -1877,7 +1902,7 @@ label.radio-label input[type="radio"] {
     background: #e9edf0;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: var(--grid-gap);    /* between key rows — keyguard bar width (settable) */
     touch-action: manipulation;
     user-select: none;
 }
@@ -1981,7 +2006,7 @@ label.radio-label input[type="radio"] {
 
 .kbd-row {
     display: flex;
-    gap: 0.4rem;
+    gap: var(--grid-gap);    /* between keys — keyguard bar width (settable) */
     justify-content: center;
 }
 

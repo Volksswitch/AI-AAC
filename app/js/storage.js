@@ -261,6 +261,37 @@ export function saveDoubleTapMs(ms) {
     saveSettings(settings);
 }
 
+// Minimum button size + button spacing — unitless slider positions (0–100). The
+// app maps each to a CSS dimension (see app.js applyButtonSizing); the user picks
+// by visual "feel". Both feed the keyguard (target size + bar width), so they're
+// Setup-tier, supporter-assisted. Defaults reproduce the historical look.
+const DEFAULT_BTN_SIZE_POS = 22;   // → --btn-min-dim ≈2.75rem (unchanged default)
+const DEFAULT_BTN_GAP_POS = 20;    // → --grid-gap 0.4rem (unchanged default)
+
+function clampPos(v, dflt) {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : dflt;
+}
+
+export function loadButtonSizePos() {
+    const s = loadSettings();
+    return s.buttonSizePos == null ? DEFAULT_BTN_SIZE_POS : clampPos(s.buttonSizePos, DEFAULT_BTN_SIZE_POS);
+}
+export function saveButtonSizePos(pos) {
+    const settings = loadSettings();
+    settings.buttonSizePos = clampPos(pos, DEFAULT_BTN_SIZE_POS);
+    saveSettings(settings);
+}
+export function loadButtonGapPos() {
+    const s = loadSettings();
+    return s.buttonGapPos == null ? DEFAULT_BTN_GAP_POS : clampPos(s.buttonGapPos, DEFAULT_BTN_GAP_POS);
+}
+export function saveButtonGapPos(pos) {
+    const settings = loadSettings();
+    settings.buttonGapPos = clampPos(pos, DEFAULT_BTN_GAP_POS);
+    saveSettings(settings);
+}
+
 // --- Conversation logging ---
 
 let conversationDirHandle = null;
