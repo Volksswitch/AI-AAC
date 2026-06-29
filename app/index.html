@@ -151,7 +151,16 @@
                             <input type="range" id="buttonGapSlider" min="0" max="100" step="1" class="size-slider">
                             <span class="slider-end">Wider</span>
                         </div>
-                        <p class="setting-hint">The gap between buttons — which is the width of the bars on a 3D-printed keyguard. Wider spacing grows the keyboard / Express Panel area (the same direction button size grows it) rather than shrinking the buttons. Changing this moves the keyguard holes, so re-cut the keyguard to match.</p>
+                        <p class="setting-hint">The gap between buttons — the width of the bars on a 3D-printed keyguard. Wider spacing grows the dock area where it can expand rather than shrinking the buttons. Cannot go below the minimum gap.</p>
+                    </div>
+                    <div class="setting-group">
+                        <label for="minGapSlider">Minimum gap</label>
+                        <div class="slider-row">
+                            <span class="slider-end">None</span>
+                            <input type="range" id="minGapSlider" min="0" max="100" step="1" class="size-slider">
+                            <span class="slider-end">Wider</span>
+                        </div>
+                        <p class="setting-hint">A hard floor on the gap in every direction. It has priority over button size — buttons stop growing (or shrink) so this minimum is always kept. Raising it also raises the button-spacing value to match.</p>
                     </div>
                     <div class="setting-group">
                         <label for="voiceSelect">Voice</label>

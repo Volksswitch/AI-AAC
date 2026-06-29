@@ -20,7 +20,7 @@ import * as controlEditor from './control-phrases-editor.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.5.48';
+const APP_VERSION = '0.5.49';
 
 const conversationHistory = [];
 let isListening = false;
@@ -101,7 +101,9 @@ function initApp() {
     ui.showEngineState(engine.getSnapshot());
     ui.applyControlIcons();
     applyConversationDockClasses();
-    applyButtonSizing();   // set --btn-min-dim / --grid-gap / --kbd-rows / --kbd-cols
+    applyButtonSizing();   // compute the conversation layout (region sizes + gaps)
+    // Region sizes depend on the viewport — recompute on resize/orientation.
+    window.addEventListener('resize', applyButtonSizing);
     ui.clearResponseOptions(); // render the reserved empty card footprint at rest
     renderExpressPanel();
     expressEditor.init(document.getElementById('expressEditor'), { onChange: renderExpressPanel });
@@ -816,18 +818,27 @@ function applyConversationDockClasses() {
     document.body.classList.toggle('conv-side-left', side && !right);
 }
 
-// --- Button sizing (Ken, June 29 2026): two unitless sliders drive the minimum
-// button size (--btn-min-dim) and the inter-button gap (--grid-gap). The gap is
-// also the keyguard's bar width, so it's a first-class knob. Slider positions
-// (0–100) map to rem so the user picks by feel; the dock grows from the active
-// layout's rows/cols × these tokens (the max()/calc() lives in styles.css), so
-// keys/Express cells always clear the minimum. ---
-const SIZE_MIN_REM = 2.75, SIZE_MAX_REM = 6.5;   // --btn-min-dim (button size) range
-const GAP_MIN_REM = 0, GAP_MAX_REM = 1.4;        // --grid-gap range (default 0 = flush, Ken)
+// --- Conversation layout solver (Ken, June 30 2026) -------------------------
+// Three unitless sliders drive the conversation layout: BUTTON SIZE (default
+// middle — slide right to GROW buttons in their unconstrained direction, left
+// to SHRINK them and fill with gap), GAP SIZE, and MINIMUM GAP (a hard floor on
+// the gap; precedence over button size). The % budget (v0.5.46/0.5.48) is the
+// slider's MIDDLE; growth/shrink perturb it. This is past CSS clamp(), so JS
+// computes the region sizes + effective gap into CSS vars on init/resize/change.
+// FIRST CUT scope (Ken): the SIDE dock (the bottom dock still uses the fixed %
+// default; its solver is the next step). Under-specified bits (freed-space
+// split, exact shrink curve, calibration of the slider's right end to the true
+// max-growth point) are reasonable choices here, to react to.
+const GAP_MAX_REM = 1.4, MINGAP_MAX_REM = 1.4;   // slider 0–100 → 0..max rem
+const MIN_BTN_REM = 2.0;          // smallest still-recognizable button (icon + border)
+const MIN_TRANSCRIPT_REM = 3.0;   // transcript floor (~2 lines)
+const SHRINK_GAP_REM = 1.4;       // how much gap a full left-shrink adds
+
+const remPx = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 const lerp = (pos, lo, hi) => lo + (Math.max(0, Math.min(100, pos)) / 100) * (hi - lo);
 
-// Count the rows + widest total span of the active dock layout, so the CSS dock
-// formula can reserve rows×dim (bottom) / cols×dim (side) of space.
+// Count rows + widest total span of the active dock layout (kept for any
+// consumers that still key off the grid shape).
 function activeLayoutGrid() {
     const rows = expressLayoutRows();
     const r = rows.length || 1;
@@ -839,10 +850,46 @@ function activeLayoutGrid() {
     return { rows: r, cols: c };
 }
 
+// Compute the conversation layout from the three sliders and write CSS vars.
 function applyButtonSizing() {
     const root = document.documentElement.style;
-    root.setProperty('--btn-min-dim', `${lerp(storage.loadButtonSizePos(), SIZE_MIN_REM, SIZE_MAX_REM).toFixed(3)}rem`);
-    root.setProperty('--grid-gap', `${lerp(storage.loadButtonGapPos(), GAP_MIN_REM, GAP_MAX_REM).toFixed(3)}rem`);
+    const rem = remPx();
+    const VW = window.innerWidth, VH = window.innerHeight;
+
+    // Slider values → px. Effective gap = max(gap-size, min-gap) (min-gap is a
+    // one-way floor; lowering it leaves gap-size put — Ken #3).
+    const minGap = (lerp(storage.loadMinGapPos(), 0, MINGAP_MAX_REM)) * rem;
+    const gapSize = (lerp(storage.loadButtonGapPos(), 0, GAP_MAX_REM)) * rem;
+    let gap = Math.max(gapSize, minGap);
+
+    // Button size: middle (50) = the % default; >50 grows, <50 shrinks.
+    const growth = (storage.loadButtonSizePos() - 50) / 50;
+
+    // Region defaults (the slider's middle): dock 30%, transcript 30%.
+    let dockW = 0.30 * VW;
+    let transcriptV = 0.30 * VH;
+
+    if (storage.loadKeyboardDock() === 'side') {
+        const minBtn = MIN_BTN_REM * rem;
+        // Main-area minimum width: the command bar's 8 buttons bind first.
+        const minMainW = 8 * minBtn + 9 * gap;
+        const minTranscript = MIN_TRANSCRIPT_REM * rem;
+        if (growth > 0) {
+            // GROW: the dock widens (main shrinks W → command/response buttons
+            // narrow) and the transcript shrinks V (command/response grow V).
+            const maxDockW = Math.max(0.30 * VW, VW - minMainW);
+            dockW = 0.30 * VW + growth * (maxDockW - 0.30 * VW);
+            transcriptV = 0.30 * VH - growth * (0.30 * VH - minTranscript);
+        } else if (growth < 0) {
+            // SHRINK: regions stay default; buttons shrink, gap fills.
+            gap = Math.max(gap, minGap) + (-growth) * SHRINK_GAP_REM * rem;
+        }
+        root.setProperty('--conv-dock-w', `${Math.round(dockW)}px`);
+        root.setProperty('--conv-transcript-v', `${Math.round(transcriptV)}px`);
+    }
+
+    root.setProperty('--grid-gap', `${gap.toFixed(2)}px`);
+    root.setProperty('--gap-min', `${minGap.toFixed(2)}px`);
     const { rows, cols } = activeLayoutGrid();
     root.setProperty('--kbd-rows', String(rows));
     root.setProperty('--kbd-cols', String(cols));
@@ -1017,8 +1064,10 @@ function openSettings() {
     // Button sizing sliders (unitless 0–100).
     const buttonSizeSlider = document.getElementById('buttonSizeSlider');
     const buttonGapSlider = document.getElementById('buttonGapSlider');
+    const minGapSlider = document.getElementById('minGapSlider');
     buttonSizeSlider.value = storage.loadButtonSizePos();
     buttonGapSlider.value = storage.loadButtonGapPos();
+    minGapSlider.value = storage.loadMinGapPos();
     updateFolderDisplay();
 
     // Reset to General tab
@@ -1175,7 +1224,22 @@ function openSettings() {
         applyButtonSizing();
     };
     buttonGapSlider.oninput = () => {
-        storage.saveButtonGapPos(Number(buttonGapSlider.value));
+        // Gap can't go below the minimum gap (clamp the slider up to it).
+        let v = Number(buttonGapSlider.value);
+        const mg = Number(minGapSlider.value);
+        if (v < mg) { v = mg; buttonGapSlider.value = String(mg); }
+        storage.saveButtonGapPos(v);
+        applyButtonSizing();
+    };
+    minGapSlider.oninput = () => {
+        const mg = Number(minGapSlider.value);
+        storage.saveMinGapPos(mg);
+        // Raising min-gap above the current gap pushes the gap up to match
+        // (one-way; lowering min-gap leaves the gap where it is — Ken #3).
+        if (Number(buttonGapSlider.value) < mg) {
+            buttonGapSlider.value = String(mg);
+            storage.saveButtonGapPos(mg);
+        }
         applyButtonSizing();
     };
 
