@@ -209,39 +209,55 @@ body.conv-side-left  #conversationMain { padding-left: var(--dock-w); }
 body.conv-bottom #dockArea { width: 100%; height: var(--dock-h); flex: 0 0 var(--dock-h); border-top: 1px solid #c4ccd2; }
 
 /* ============================================================================
-   SIDE DOCK — default percentage layout (Ken, June 30 2026).
-   Dock = 30% width, full height. Main area = the remaining 70% width, split
-   VERTICALLY: transcript 30% / command bar 10% / response palette 60% (the
-   3:1:6 flex auto-absorbs the inter-region gaps). Components are surrounded by
-   ½·gap and separated by 1·gap. Buttons FILL their region (their size is
-   derived from these percentages; what button-size / gap / minimum-gap changes
-   DO to this is the deferred step, so those sliders don't drive the side dock
-   yet). Default gap = 0 → everything flush (borders still separate buttons).
+   CONVERSATION default percentage layout (Ken, June 30 2026).
+   Four top-level components — transcript, command bar, response palette, dock —
+   budgeted as % of screen, per dock mode. Buttons FILL their region (their size
+   derives from the %; what button-size / gap / minimum-gap CHANGES do is the
+   deferred step, so those sliders don't drive the layout yet).
+   Spacing: outer padding around the cluster = MIN-GAP (the main-area side is
+   wired here; insetting the fixed dock is deferred with the min-gap slider);
+   components separated by 1·gap; the dock's internal surround = ½·gap.
+   Default gap = 0, min-gap = 0 → flush (borders still separate buttons).
+
+   SIDE  : dock 30% WIDTH, full height; remaining 70% width splits vertically
+           transcript 30 / command 10 / response 60  (3:1:6).
+   BOTTOM: dock 30% HEIGHT, full width; remaining 70% height splits
+           transcript 30 / command 10 / response 30 of the viewport (3:1:3).
    ============================================================================ */
-body.conv-side { --dock-w: 30vw; }   /* replaces the button-size-driven width (deferred growth) */
+body.conv-side   { --dock-w: 30vw; }   /* dock 30% width  (button-size growth deferred) */
+body.conv-bottom { --dock-h: 30vh; }   /* dock 30% height (button-size growth deferred) */
 
-body.conv-side #mainArea {
-    padding: calc(var(--grid-gap) / 2);   /* ½·gap around the cluster */
-    gap: var(--grid-gap);                  /* 1·gap between regions */
-}
-/* Vertical budget: 30 / 10 / 60. */
-body.conv-side #transcriptSection { flex: 3 1 0; min-height: 0; }
-body.conv-side #listenControls    { flex: 1 1 0; min-height: 0; margin-top: 0; }
-body.conv-side #responsesSection  { flex: 6 1 0; min-height: 0; display: flex; }
+/* Outer padding around the cluster = min-gap; regions separated by 1·gap. */
+body.conv-side #mainArea,
+body.conv-bottom #mainArea { padding: var(--gap-min); gap: var(--grid-gap); }
 
-/* Command bar: 8 buttons, each 1/8 of the width, full region height. */
-body.conv-side #listenControls { align-items: stretch; }
-body.conv-side #listenControls > button { flex: 1 1 0; min-width: 0; min-height: 0; }
+/* Vertical budget per dock (3:1:6 side, 3:1:3 bottom — the dock takes the rest). */
+body.conv-side   #transcriptSection { flex: 3 1 0; min-height: 0; }
+body.conv-side   #listenControls    { flex: 1 1 0; min-height: 0; margin-top: 0; }
+body.conv-side   #responsesSection  { flex: 6 1 0; min-height: 0; display: flex; }
+body.conv-bottom #transcriptSection { flex: 3 1 0; min-height: 0; }
+body.conv-bottom #listenControls    { flex: 1 1 0; min-height: 0; margin-top: 0; }
+body.conv-bottom #responsesSection  { flex: 3 1 0; min-height: 0; display: flex; }
 
-/* Response palette region fills its 60%; inside it the cards take 90% width and
-   the "New 4" button 10% (9:1 absorbs the gap). Cards are a 2×2 grid → each
-   card 50% height; let them fill (no fixed min that would overflow). */
-body.conv-side #responseArea { flex: 1 1 0; height: auto; min-height: 0; }
-body.conv-side .palette-grid  { flex: 9 1 0; }
-body.conv-side .regenerate-btn { flex: 1 1 0; width: auto; }
-body.conv-side .response-cell { min-height: 0; }
-body.conv-side .response-card,
-body.conv-side .response-card-empty { min-height: 0; }
+/* Command bar: 8 buttons, each 1/8 of the width, full region height (both docks). */
+body.conv-side #listenControls,
+body.conv-bottom #listenControls { align-items: stretch; }
+body.conv-side #listenControls > button,
+body.conv-bottom #listenControls > button { flex: 1 1 0; min-width: 0; min-height: 0; }
+
+/* Response palette region fills its budget; inside it the cards take 90% width
+   (side = 2×2, bottom = 1×4) and the "New 4" button 10% (9:1 absorbs the gap).
+   Cards fill (no fixed min that would overflow). */
+body.conv-side #responseArea,
+body.conv-bottom #responseArea { flex: 1 1 0; height: auto; min-height: 0; }
+body.conv-side .palette-grid,
+body.conv-bottom .palette-grid { flex: 9 1 0; }
+body.conv-side .regenerate-btn,
+body.conv-bottom .regenerate-btn { flex: 1 1 0; width: auto; }
+body.conv-side .response-cell,
+body.conv-bottom .response-cell { min-height: 0; }
+body.conv-side .response-card, body.conv-side .response-card-empty,
+body.conv-bottom .response-card, body.conv-bottom .response-card-empty { min-height: 0; }
 
 /* Express Panel: just the phrase grid now (#epGrid, mirroring the keyboard
    layout). The old #epControls override row was removed (Ken, June 29 2026) when
