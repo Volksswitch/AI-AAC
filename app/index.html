@@ -114,6 +114,7 @@
                 <div class="settings-tab" data-tab="conversation">Conversation</div>
                 <div class="settings-tab" data-tab="express">Express Panel</div>
                 <div class="settings-tab" data-tab="controls">Controls</div>
+                <div class="settings-tab" data-tab="keyguard">Keyguard Design</div>
                 <div class="settings-tab" data-tab="about">About</div>
             </nav>
             <div id="settingsContent">
@@ -352,6 +353,17 @@
                 <div class="tab-panel" data-tab="controls">
                     <p class="setting-hint">Set the exact words spoken by the persistent control buttons, and the cards shown by <strong>Start conversation</strong> and <strong>Wind down</strong> — so each sounds like something you would say.</p>
                     <div id="controlEditor"></div>
+                </div>
+                <div class="tab-panel" data-tab="keyguard">
+                    <p class="setting-hint">Generate a <strong>Screen Openings.txt</strong> file describing each control on the main conversation screen — for cutting a physical keyguard. Positions and sizes are in <strong>device (screenshot) pixels</strong>, measured from the upper-left of the screen. Enter your window's title-bar height so each opening's Y matches a full-screen screenshot.</p>
+                    <div class="setting-group">
+                        <label for="titleBarHeightInput">Title Bar Height (px)</label>
+                        <input type="number" id="titleBarHeightInput" min="0" step="1" value="0" inputmode="numeric">
+                    </div>
+                    <div class="setting-group">
+                        <button id="generateOpeningsBtn" type="button">Generate Screen Openings</button>
+                        <p class="setting-hint">Writes <strong>Screen Openings.txt</strong> to the root of your data folder. Choose a data folder first (General tab) if you haven't.</p>
+                    </div>
                 </div>
                 <div class="tab-panel" data-tab="about">
                     <h3>Conversant AAC</h3>

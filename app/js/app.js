@@ -20,7 +20,7 @@ import * as controlEditor from './control-phrases-editor.js';
 // Point-release version shown in Settings → About. Bump alongside the
 // sw.js CACHE_VERSION on every release so beta testers can report exactly
 // which build they're on.
-const APP_VERSION = '0.5.56';
+const APP_VERSION = '0.5.57';
 
 const conversationHistory = [];
 let isListening = false;
@@ -975,6 +975,75 @@ async function handleSpeakExpressItem(phrase) {
 
 // --- Settings dialog ---
 
+// --- Keyguard Design: emit a "Screen Openings.txt" describing each control on
+// the main conversation screen, in DEVICE (screenshot) pixels — a physical
+// keyguard is cut in real pixels, so everything is CSS px × devicePixelRatio.
+// Each opening's Y has the window title-bar height added so it lines up with a
+// full-screen screenshot (the page viewport sits below the title bar). X needs
+// no offset on a maximized window (content left edge = screen left edge).
+
+// Collect the main-UI controls, in reading order, as { name, el } pairs. Only
+// laid-out (visible) elements are included.
+function collectMainControls() {
+    const out = [];
+    const add = (el, name) => {
+        if (!el) return;
+        if (el.getClientRects().length === 0) return; // skip hidden / unlaid-out
+        out.push({ el, name });
+    };
+
+    // Transcript (the conversation log box).
+    add(document.getElementById('transcript'), 'Transcript');
+
+    // Command Bar — the icon buttons (each keeps an accessible name).
+    document.querySelectorAll('#listenControls button').forEach((b) =>
+        add(b, b.getAttribute('aria-label') || b.textContent.trim() || b.id));
+
+    // Response footprint — the four fixed cells (empty at rest, populated in a
+    // conversation; either way four), then the regenerate button.
+    let rN = 0;
+    document.querySelectorAll('#responseOptions > .response-card-empty, #responseOptions > .response-cell')
+        .forEach((c) => { rN += 1; add(c, `Response option ${rN}`); });
+    const regen = document.getElementById('regenerateBtn');
+    add(regen, regen ? (regen.getAttribute('aria-label') || regen.textContent.trim()) : null);
+
+    // Express Panel buttons (phrases / partners / feelings / "In my own words").
+    document.querySelectorAll('#epGrid .ep-btn').forEach((b) =>
+        add(b, b.textContent.trim() || b.getAttribute('aria-label') || 'Express button'));
+
+    return out;
+}
+
+async function generateScreenOpenings() {
+    if (!storage.hasDataFolder()) {
+        window.alert('Choose a data folder first (Settings → General → Data Folder), then try again.');
+        return;
+    }
+    const titleBar = Math.max(0, Math.round(Number(document.getElementById('titleBarHeightInput').value) || 0));
+    const dpr = window.devicePixelRatio || 1;
+    const px = (n) => Math.round(n * dpr); // CSS px → device/screenshot px
+
+    const controls = collectMainControls();
+    const lines = controls.map(({ el, name }) => {
+        const r = el.getBoundingClientRect();
+        const radCss = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+        const h = px(r.height);
+        const w = px(r.width);
+        const rad = px(radCss);
+        const x = px(r.left + r.width / 2);
+        const y = px(r.top + r.height / 2) + titleBar; // add title bar to Y
+        // [ "name", "r", height, width, radius, xCenter, yCenter, 0, "C", "T", 0, 0, [], [] ],
+        return `[ ${JSON.stringify(name)}, "r", ${h}, ${w}, ${rad}, ${x}, ${y}, 0, "C", "T", 0, 0, [], [] ],`;
+    });
+
+    try {
+        await storage.writeFile('Screen Openings.txt', lines.join('\n') + '\n');
+        window.alert(`Wrote "Screen Openings.txt" (${lines.length} controls) to the data folder.`);
+    } catch (err) {
+        window.alert(`Could not write the file: ${err.message}`);
+    }
+}
+
 function initSettingsTabs() {
     document.querySelectorAll('#settingsTabs .settings-tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -1208,6 +1277,8 @@ function openSettings() {
             'full-screen screenshot.)'
         );
     };
+
+    document.getElementById('generateOpeningsBtn').onclick = generateScreenOpenings;
 
     document.getElementById('testVoiceBtn').onclick = () => {
         tts.setVoice(voiceSelect.value || null);
