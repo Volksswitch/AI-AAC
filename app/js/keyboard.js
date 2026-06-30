@@ -736,6 +736,11 @@ export function previewShow(dock) {
     if (!rootEl || mode !== 'onscreen') return;
     previewing = true;
     activeField = null;
+    // No focused field in a preview → no inline completion ghost. Drop any ghost
+    // left over from a field we were just typing in (e.g. leaving a worldview
+    // card for the topic list) so it doesn't linger over the dock.
+    if (ghostField) { ghostField.removeEventListener('scroll', repositionGhost); ghostField = null; }
+    clearGhost();
     page = 'letters';
     shiftState = 'off';
     rootEl.classList.remove('kbd-no-hide'); // Settings preview keeps Hide

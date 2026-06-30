@@ -1,0 +1,35 @@
+{
+  "description": "Running log of changes since the user-facing documentation was last updated. Consumed by the documentation-update tool. Clear the 'changes' array (on request) once the docs have been regenerated.",
+  "lastUpdated": "2026-06-30",
+  "changes": [
+    {
+      "version": "0.5.53",
+      "date": "2026-06-30",
+      "title": "Keyboard stays up the whole time About Me is open",
+      "summary": "Opening the About Me tab in Settings now shows the on-screen keyboard right away and keeps it displayed until you tap Done, instead of it only appearing when you tap into a text box.",
+      "details": [
+        "When you open About Me (the About Me tab in Settings), the on-screen keyboard appears immediately in your chosen dock position.",
+        "It stays displayed the entire time About Me is open - on the topic list as well as inside a topic - so it no longer appears and disappears as you move between screens and entries.",
+        "Tapping into an answer box lets you type as before; the keyboard simply never goes away while About Me is open.",
+        "Tapping Done closes About Me and takes the keyboard down (and returns you to Settings).",
+        "Only applies when 'Keyboard for typing' is set to the on-screen keyboard; with a physical keyboard nothing changes."
+      ],
+      "userFacing": true
+    },
+    {
+      "version": "0.5.52",
+      "date": "2026-06-30",
+      "title": "Keyboard separation setting",
+      "summary": "A new Settings control sets the gap between the keyboard / Express Panel and the rest of the screen, separate from the gap between buttons.",
+      "details": [
+        "New slider 'Keyboard separation' in Settings -> Speech & Input (below 'Minimum gap'), with - and + step buttons like the other sizing sliders.",
+        "Controls the space between the dock (the keyboard / Express Panel area) and the rest of the UI; it is independent of the 'Button spacing' (inter-button) gap.",
+        "It moves only the other content away from the keyboard - the keyboard keeps its position, so changing it does NOT move the keyguard holes and the keyguard does not need to be re-cut.",
+        "Applies on every screen that reserves the dock area: the conversation screen, the Settings panel, and the About Me screen, for both the side dock and the bottom dock.",
+        "Default is 0 (flush, the previous look). Range 0 to about 4rem.",
+        "Deliberately NOT reset by the 'Reset buttons and gaps to default' button - keyboard separation is an independent layout preference."
+      ],
+      "userFacing": true
+    }
+  ]
+}

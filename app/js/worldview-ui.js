@@ -91,6 +91,17 @@ export function init(opts = {}) {
     document.getElementById('worldviewCloseBtn').addEventListener('click', close);
 }
 
+// Show the on-screen keyboard in the user's configured dock and keep it up for
+// the whole About Me session (Ken, June 30 2026). A non-typing preview when no
+// field is focused (the home/topic list); focusing a card's field upgrades it to
+// a typing keyboard via the global focusin handler. No-op in physical-keyboard
+// mode (previewShow guards on mode), so nothing shows there.
+function showDockKeyboard() {
+    if (storage.loadKeyboardMode() === 'onscreen') {
+        keyboard.previewShow(storage.loadKeyboardDock());
+    }
+}
+
 export async function open() {
     // Best-effort: make sure the user-owned data folder is restored so answers
     // persist to worldview.json (falls back to the localStorage cache if not).
@@ -196,10 +207,13 @@ function renderGaps() {
 }
 
 function renderHome() {
-    // The home list has no text field; if the keyboard was kept up while
-    // navigating out of a module (focus moved to a Back/Done button), take it
-    // down here so it doesn't float over the topic list.
-    keyboard.hideKeyboard();
+    // Keep the on-screen keyboard up the entire time About Me is open (Ken, June
+    // 30 2026), including on this home/topic list which has no text field, so the
+    // user can enter/modify entries without it appearing and disappearing. The
+    // dock area is reserved on #worldviewScreen at all times (v0.5.25), so the
+    // keyboard just fills that reserved band — it never covers the topic list.
+    // close() takes it down when the user is done.
+    showDockKeyboard();
     titleEl.textContent = 'About Me';
     contentEl.scrollTop = 0;
     contentEl.innerHTML = '';
